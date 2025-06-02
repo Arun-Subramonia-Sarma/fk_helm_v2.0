@@ -1,0 +1,368 @@
+# Default values for generic workload chart
+# This is a YAML-formatted file.
+
+# Global settings
+global:
+  nameOverride: ""
+  fullnameOverride: ""
+
+# Business/Project Labels - Applied to all workloads and pods
+businessLabels:
+  bu: ""           # Business Unit
+  project: ""      # Project name
+  application: ""  # Application name
+  env: ""          # Environment (dev, test, prod, etc.)
+
+# Image configuration
+image:
+  repository: nginx
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+imagePullSecrets: []
+
+# Service Account
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# Pod Security Context
+podSecurityContext: {}
+  # fsGroup: 2000
+
+# Container Security Context
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+# Resource limits and requests
+resources: {}
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity: {}
+
+# Common pod annotations and labels (applied to all pods)
+podAnnotations: {}
+podLabels: {}
+
+# Common workload annotations and labels (applied to all workloads)
+workloadAnnotations: {}
+workloadLabels: {}
+
+# Environment variables in key=value format
+envVars: {}
+  # DATABASE_URL: "postgresql://localhost:5432/mydb"
+  # DEBUG: "true"
+  # PORT: "8080"
+
+# Environment variables from ConfigMap/Secret
+envFrom: []
+  # - configMapRef:
+  #     name: my-config
+  # - secretRef:
+  #     name: my-secret
+
+# Values from environment variables (valueFrom)
+envValueFrom: {}
+  # DATABASE_PASSWORD:
+  #   secretKeyRef:
+  #     name: db-secret
+  #     key: password
+  # NODE_NAME:
+  #   fieldRef:
+  #     fieldPath: spec.nodeName
+
+# Volume mounts
+volumeMounts: []
+  # - name: config-volume
+  #   mountPath: /etc/config
+
+# Volumes
+volumes: []
+  # - name: config-volume
+  #   configMap:
+  #     name: my-config
+
+# Init containers
+initContainers: []
+
+# Sidecar containers
+sidecarContainers: []
+
+# Workload Configuration
+workload:
+  # Type of workload: deployment, statefulset, daemonset, rollout
+  type: deployment
+  
+  # Additional workload-specific annotations and labels
+  annotations: {}
+  labels: {}
+  
+  # Deployment specific settings
+  deployment:
+    enabled: true
+    replicas: 1
+    strategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxUnavailable: 25%
+        maxSurge: 25%
+    revisionHistoryLimit: 10
+    annotations: {}
+    labels: {}
+  
+  # StatefulSet specific settings
+  statefulset:
+    enabled: false
+    replicas: 1
+    serviceName: ""
+    podManagementPolicy: OrderedReady
+    updateStrategy:
+      type: RollingUpdate
+    volumeClaimTemplates: []
+    annotations: {}
+    labels: {}
+  
+  # DaemonSet specific settings
+  daemonset:
+    enabled: false
+    updateStrategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxUnavailable: 1
+    annotations: {}
+    labels: {}
+  
+  # Argo Rollouts specific settings
+  rollout:
+    enabled: false
+    replicas: 1
+    revisionHistoryLimit: 10
+    strategy:
+      canary:
+        steps:
+        - setWeight: 20
+        - pause: {}
+        - setWeight: 40
+        - pause: {duration: 10}
+        - setWeight: 60
+        - pause: {duration: 10}
+        - setWeight: 80
+        - pause: {duration: 10}
+    annotations: {}
+    labels: {}
+
+# Jobs Configuration - All jobs go here (single or multiple)
+jobs: {}
+  # Example:
+  # migration:
+  #   enabled: true
+  #   backoffLimit: 6
+  #   completions: 1
+  #   parallelism: 1
+  #   activeDeadlineSeconds: null
+  #   ttlSecondsAfterFinished: 100
+  #   restartPolicy: OnFailure
+  #   image:
+  #     repository: my-app
+  #     tag: migrate-v1.0
+  #   command: ["python", "migrate.py"]
+  #   args: ["--env", "production"]
+  #   envVars:
+  #     DB_HOST: "postgres-service"
+  #     DB_PORT: "5432"
+  #   envValueFrom:
+  #     DB_PASSWORD:
+  #       secretKeyRef:
+  #         name: db-secret
+  #         key: password
+  #   envFrom: []
+  #   resources: {}
+  #   volumeMounts: []
+  #   volumes: []
+  #   annotations: {}
+  #   labels: {}
+  #   podAnnotations: {}
+  #   podLabels: {}
+
+# CronJobs Configuration - All cronjobs go here (single or multiple)
+cronjobs: {}
+  # Example:
+  # backup:
+  #   enabled: true
+  #   schedule: "0 2 * * *"
+  #   concurrencyPolicy: Forbid
+  #   failedJobsHistoryLimit: 1
+  #   successfulJobsHistoryLimit: 3
+  #   jobTemplate:
+  #     backoffLimit: 3
+  #     completions: 1
+  #     parallelism: 1
+  #     restartPolicy: OnFailure
+  #   image:
+  #     repository: postgres
+  #     tag: "13"
+  #   command: ["pg_dump"]
+  #   envVars:
+  #     DB_NAME: "mydb"
+  #   envValueFrom:
+  #     PGPASSWORD:
+  #       secretKeyRef:
+  #         name: postgres-secret
+  #         key: password
+  #   annotations: {}
+  #   labels: {}
+
+# Multiple Services Configuration
+services: {}
+  # Example:
+  # api:
+  #   enabled: true
+  #   type: ClusterIP
+  #   port: 80
+  #   targetPort: 8080
+  #   annotations: {}
+  #   labels: {}
+
+# Multiple ConfigMaps Configuration
+configMaps: {}
+  # Example:
+  # app-config:
+  #   enabled: true
+  #   annotations: {}
+  #   labels: {}
+  #   data:
+  #     config.yaml: |
+  #       database:
+  #         host: postgres
+  #         port: 5432
+
+# Multiple Secrets Configuration  
+secrets: {}
+  # Example:
+  # db-secret:
+  #   enabled: true
+  #   type: Opaque
+  #   annotations: {}
+  #   labels: {}
+  #   data:
+  #     username: dXNlcm5hbWU=  # base64 encoded
+  #     password: cGFzc3dvcmQ=  # base64 encoded
+
+# Ingress Configuration with active/preview support
+ingress:
+  # Global labels applied to all ingresses
+  labels: {}
+    # testlabel-1: value1
+  
+  # Labels for active version ingresses
+  labels_active: {}
+    # testlabel-active-1: value1
+  
+  # Labels for preview version ingresses  
+  labels_preview: {}
+    # testlabel-preview-1: value1
+  
+  # Global annotations applied to all ingresses
+  annotations: {}
+    # testannotation-1: value1
+  
+  # Annotations for active version ingresses
+  annotations_active: {}
+    # testannotation-active-1: value1
+  
+  # Annotations for preview version ingresses
+  annotations_preview: {}
+    # testannotation-preview-1: value1
+  
+  # Individual ingress configurations
+  data: {}
+    # Example structure as per your requirement:
+    # fk-ingress:
+    #   enabled: true
+    #   labels:
+    #     test-fk-ingress-label: value1
+    #   labels_preview:
+    #     test-fk-ingress-label-preview: value1
+    #   labels_active:
+    #     test-fk-ingress-label-active: value1
+    #   annotations:
+    #     appgw.ingress.kubernetes.io/request-timeout: "120"
+    #   annotations_active:
+    #     appgw.ingress.kubernetes.io/appgw-ssl-certificate: wildcard-fourkites-ssl
+    #   annotations_preview:
+    #     appgw.ingress.kubernetes.io/appgw-ssl-certificate: ng-fourkites-com-wildcard-cert
+    #   className: "azure-application-gateway"
+    #   hosts:
+    #     - host: dy.fourkites.com
+    #       host_preview: dy-preview.ng.fourkites.com
+    #       paths:
+    #         - path: /api/*
+    #           pathType: ImplementationSpecific
+    #         - path: /auth/*
+    #           pathType: ImplementationSpecific
+    #         - path: /tms/*
+    #           pathType: ImplementationSpecific
+    #         - path: /gate/*
+    #           pathType: ImplementationSpecific
+    #         - path: /wms/*
+    #           pathType: ImplementationSpecific
+    #         - path: /occupancy/*
+    #           pathType: ImplementationSpecific
+
+# Horizontal Pod Autoscaler
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+  annotations: {}
+  labels: {}
+
+# Pod Disruption Budget
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+  annotations: {}
+  labels: {}
+
+# Health checks (only applied to long-running workloads)
+livenessProbe: {}
+  # httpGet:
+  #   path: /health
+  #   port: http
+  # initialDelaySeconds: 30
+  # periodSeconds: 10
+
+readinessProbe: {}
+  # httpGet:
+  #   path: /ready
+  #   port: http
+  # initialDelaySeconds: 5
+  # periodSeconds: 5
+
+startupProbe: {}
+  # httpGet:
+  #   path: /startup
+  #   port: http
+  # initialDelaySeconds: 10
+  # periodSeconds: 10
+  # failureThreshold: 30

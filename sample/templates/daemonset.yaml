@@ -1,0 +1,20 @@
+{{- if eq .Values.workload.type "daemonset" }}
+{{- if .Values.workload.daemonset.enabled }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "generic-chart.fullname" . }}
+  labels:
+    {{- include "generic-chart.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "generic-chart.selectorLabels" . | nindent 6 }}
+  {{- with .Values.workload.daemonset.updateStrategy }}
+  updateStrategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  template:
+    {{- include "generic-chart.podTemplate" . | nindent 4 }}
+{{- end }}
+{{- end }}

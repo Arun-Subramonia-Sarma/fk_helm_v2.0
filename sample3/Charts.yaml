@@ -1,0 +1,33 @@
+apiVersion: v2
+name: generic-workload-chart
+description: A comprehensive generic Helm chart for deploying various Kubernetes workloads with advanced features
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+
+keywords:
+  - generic
+  - workload
+  - deployment
+  - statefulset
+  - daemonset
+  - job
+  - cronjob
+  - rollout
+  - argo
+  - multi-service
+  - multi-ingress
+
+home: https://github.com/your-org/generic-workload-chart
+sources:
+  - https://github.com/your-org/generic-workload-chart
+
+maintainers:
+  - name: Your Name
+    email: your.email@example.com
+
+dependencies: []
+
+annotations:
+  category: Infrastructure
+  licenses: Apache-2.0

@@ -1,0 +1,329 @@
+# Default values for generic workload chart
+# This is a YAML-formatted file.
+
+# Global settings
+global:
+  nameOverride: ""
+  fullnameOverride: ""
+
+# Image configuration
+image:
+  repository: nginx
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+imagePullSecrets: []
+
+# Service Account
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# Pod Security Context
+podSecurityContext: {}
+  # fsGroup: 2000
+
+# Container Security Context
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+# Resource limits and requests
+resources: {}
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity: {}
+
+# Pod annotations and labels
+podAnnotations: {}
+podLabels: {}
+
+# Environment variables
+env: []
+  # - name: ENV_VAR
+  #   value: "value"
+
+# Environment variables from ConfigMap/Secret
+envFrom: []
+  # - configMapRef:
+  #     name: my-config
+  # - secretRef:
+  #     name: my-secret
+
+# Volume mounts
+volumeMounts: []
+  # - name: config-volume
+  #   mountPath: /etc/config
+
+# Volumes
+volumes: []
+  # - name: config-volume
+  #   configMap:
+  #     name: my-config
+
+# Init containers
+initContainers: []
+  # - name: init-myservice
+  #   image: busybox:1.28
+  #   command: ['sh', '-c', 'until nslookup myservice; do echo waiting for myservice; sleep 2; done;']
+
+# Sidecar containers
+sidecarContainers: []
+  # - name: sidecar
+  #   image: busybox:1.28
+  #   command: ['sleep', '3600']
+
+# Workload Configuration
+workload:
+  # Type of workload: deployment, statefulset, daemonset, job, cronjob, rollout
+  type: deployment
+  
+  # Deployment specific settings
+  deployment:
+    enabled: true
+    replicas: 1
+    strategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxUnavailable: 25%
+        maxSurge: 25%
+    revisionHistoryLimit: 10
+  
+  # StatefulSet specific settings
+  statefulset:
+    enabled: false
+    replicas: 1
+    serviceName: ""
+    podManagementPolicy: OrderedReady
+    updateStrategy:
+      type: RollingUpdate
+    volumeClaimTemplates: []
+      # - metadata:
+      #     name: data
+      #   spec:
+      #     accessModes: ["ReadWriteOnce"]
+      #     resources:
+      #       requests:
+      #         storage: 1Gi
+  
+  # DaemonSet specific settings
+  daemonset:
+    enabled: false
+    updateStrategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxUnavailable: 1
+  
+  # Job specific settings (for single job)
+  job:
+    enabled: false
+    backoffLimit: 6
+    completions: 1
+    parallelism: 1
+    activeDeadlineSeconds: null
+    ttlSecondsAfterFinished: 100
+    restartPolicy: OnFailure
+  
+  # CronJob specific settings (for single cronjob)
+  cronjob:
+    enabled: false
+    schedule: "0 1 * * *"
+    concurrencyPolicy: Allow
+    failedJobsHistoryLimit: 1
+    successfulJobsHistoryLimit: 3
+    startingDeadlineSeconds: null
+    suspend: false
+    jobTemplate:
+      backoffLimit: 6
+      completions: 1
+      parallelism: 1
+      activeDeadlineSeconds: null
+      ttlSecondsAfterFinished: 100
+      restartPolicy: OnFailure
+  
+  # Argo Rollouts specific settings
+  rollout:
+    enabled: false
+    replicas: 1
+    revisionHistoryLimit: 10
+    strategy:
+      canary:
+        steps:
+        - setWeight: 20
+        - pause: {}
+        - setWeight: 40
+        - pause: {duration: 10}
+        - setWeight: 60
+        - pause: {duration: 10}
+        - setWeight: 80
+        - pause: {duration: 10}
+
+# Multiple Jobs Configuration
+jobs: {}
+  # job1:
+  #   enabled: true
+  #   backoffLimit: 6
+  #   completions: 1
+  #   parallelism: 1
+  #   activeDeadlineSeconds: null
+  #   ttlSecondsAfterFinished: 100
+  #   restartPolicy: OnFailure
+  #   image:
+  #     repository: busybox
+  #     tag: latest
+  #   command: ["echo", "Hello Job 1"]
+  #   resources: {}
+  #   env: []
+  #   volumeMounts: []
+  #   volumes: []
+  # 
+  # job2:
+  #   enabled: true
+  #   backoffLimit: 3
+  #   completions: 2
+  #   parallelism: 2
+  #   restartPolicy: Never
+  #   image:
+  #     repository: alpine
+  #     tag: latest
+  #   command: ["sh", "-c", "echo Hello Job 2 && sleep 10"]
+
+# Multiple CronJobs Configuration
+cronjobs: {}
+  # backup:
+  #   enabled: true
+  #   schedule: "0 2 * * *"
+  #   concurrencyPolicy: Forbid
+  #   failedJobsHistoryLimit: 1
+  #   successfulJobsHistoryLimit: 3
+  #   startingDeadlineSeconds: 300
+  #   suspend: false
+  #   jobTemplate:
+  #     backoffLimit: 3
+  #     completions: 1
+  #     parallelism: 1
+  #     activeDeadlineSeconds: 600
+  #     ttlSecondsAfterFinished: 3600
+  #     restartPolicy: OnFailure
+  #   image:
+  #     repository: postgres
+  #     tag: 13
+  #   command: ["pg_dump", "-h", "postgres-service", "mydb"]
+  #   env:
+  #     - name: PGPASSWORD
+  #       valueFrom:
+  #         secretKeyRef:
+  #           name: postgres-secret
+  #           key: password
+  # 
+  # cleanup:
+  #   enabled: true
+  #   schedule: "0 0 * * 0"
+  #   concurrencyPolicy: Allow
+  #   image:
+  #     repository: busybox
+  #     tag: latest
+  #   command: ["sh", "-c", "find /tmp -type f -mtime +7 -delete"]
+
+# Service configuration
+service:
+  enabled: true
+  type: ClusterIP
+  port: 80
+  targetPort: 80
+  # nodePort: 30080  # Only for NodePort type
+  annotations: {}
+
+# Ingress configuration
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: chart-example.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+    # - secretName: chart-example-tls
+    #   hosts:
+    #     - chart-example.local
+
+# Horizontal Pod Autoscaler
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+# Pod Disruption Budget
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+  # maxUnavailable: 1
+
+# ConfigMap
+configMap:
+  enabled: false
+  data: {}
+    # config.yaml: |
+    #   key: value
+
+# Secret
+secret:
+  enabled: false
+  type: Opaque
+  data: {}
+    # username: dXNlcm5hbWU=  # base64 encoded
+    # password: cGFzc3dvcmQ=  # base64 encoded
+
+# Persistence (for StatefulSets)
+persistence:
+  enabled: false
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 8Gi
+  annotations: {}
+
+# Health checks
+livenessProbe: {}
+  # httpGet:
+  #   path: /health
+  #   port: http
+  # initialDelaySeconds: 30
+  # periodSeconds: 10
+
+readinessProbe: {}
+  # httpGet:
+  #   path: /ready
+  #   port: http
+  # initialDelaySeconds: 5
+  # periodSeconds: 5
+
+startupProbe: {}
+  # httpGet:
+  #   path: /startup
+  #   port: http
+  # initialDelaySeconds: 10
+  # periodSeconds: 10
+  # failureThreshold: 30

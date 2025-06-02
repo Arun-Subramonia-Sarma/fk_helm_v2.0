@@ -1,0 +1,22 @@
+{{- if eq .Values.workload.type "rollout" }}
+{{- if .Values.workload.rollout.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: {{ include "generic-chart.fullname" . }}
+  labels:
+    {{- include "generic-chart.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.workload.rollout.replicas }}
+  selector:
+    matchLabels:
+      {{- include "generic-chart.selectorLabels" . | nindent 6 }}
+  revisionHistoryLimit: {{ .Values.workload.rollout.revisionHistoryLimit }}
+  {{- with .Values.workload.rollout.strategy }}
+  strategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  template:
+    {{- include "generic-chart.podTemplate" . | nindent 4 }}
+{{- end }}
+{{- end }}

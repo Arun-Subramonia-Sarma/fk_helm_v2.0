@@ -1,0 +1,28 @@
+{{- if eq .Values.workload.type "job" }}
+{{- if .Values.workload.job.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "generic-chart.fullname" . }}
+  labels:
+    {{- include "generic-chart.labels" . | nindent 4 }}
+spec:
+  {{- with .Values.workload.job.backoffLimit }}
+  backoffLimit: {{ . }}
+  {{- end }}
+  {{- with .Values.workload.job.completions }}
+  completions: {{ . }}
+  {{- end }}
+  {{- with .Values.workload.job.parallelism }}
+  parallelism: {{ . }}
+  {{- end }}
+  {{- with .Values.workload.job.activeDeadlineSeconds }}
+  activeDeadlineSeconds: {{ . }}
+  {{- end }}
+  {{- with .Values.workload.job.ttlSecondsAfterFinished }}
+  ttlSecondsAfterFinished: {{ . }}
+  {{- end }}
+  template:
+    {{- include "generic-chart.jobPodTemplate" . | nindent 4 }}
+{{- end }}
+{{- end }}

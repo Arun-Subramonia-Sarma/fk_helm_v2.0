@@ -1,0 +1,27 @@
+{{- if eq .Values.workload.type "statefulset" }}
+{{- if .Values.workload.statefulset.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "generic-chart.fullname" . }}
+  labels:
+    {{- include "generic-chart.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.workload.statefulset.replicas }}
+  selector:
+    matchLabels:
+      {{- include "generic-chart.selectorLabels" . | nindent 6 }}
+  serviceName: {{ .Values.workload.statefulset.serviceName | default (include "generic-chart.fullname" .) }}
+  podManagementPolicy: {{ .Values.workload.statefulset.podManagementPolicy }}
+  {{- with .Values.workload.statefulset.updateStrategy }}
+  updateStrategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  template:
+    {{- include "generic-chart.podTemplate" . | nindent 4 }}
+  {{- with .Values.workload.statefulset.volumeClaimTemplates }}
+  volumeClaimTemplates:
+    {{- toYaml . | nindent 2 }}
+  {{- end }}
+{{- end }}
+{{- end }}

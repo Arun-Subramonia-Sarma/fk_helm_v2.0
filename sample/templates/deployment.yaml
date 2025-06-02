@@ -1,0 +1,24 @@
+{{- if eq .Values.workload.type "deployment" }}
+{{- if .Values.workload.deployment.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "generic-chart.fullname" . }}
+  labels:
+    {{- include "generic-chart.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.workload.deployment.replicas }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "generic-chart.selectorLabels" . | nindent 6 }}
+  {{- with .Values.workload.deployment.strategy }}
+  strategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  revisionHistoryLimit: {{ .Values.workload.deployment.revisionHistoryLimit }}
+  template:
+    {{- include "generic-chart.podTemplate" . | nindent 4 }}
+{{- end }}
+{{- end }}

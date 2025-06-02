@@ -1,0 +1,64 @@
+Create a generic HELM chart which can be used for most of the use case which follows the following rules
+I should be able to create any workload including: deployment, statefuleset, job, cronjob, deaomnset and argorollouts
+Workload should be inputed from the value and defaulted in values.yaml
+I should be able to create multiple job and cronjob in the same helm chart and each should use its own properties.
+All other workloads should be created only once per the helm chart
+The pod temapltes should be reused
+Jobs and Cronjob should be able reuse the same pod temaplate
+In case of multiple jobs or single job, I should be able to perform it through the same template and there is no need to have individual temaplate created for multiple jobs and for the single job
+I shold be able to add properties like bu, project, application and env as label to all the workloads and the pods and these properties needed be part of pod selectors
+In case of the multiple job each job should have the additional label jobname or for event cronjob, it shoould be jobname
+I should be able add additional labels and annotation at workloads and for the pods apart from the common annotation and labels
+I should be able to have multiple services, configmaps and secrets to be created by the helm
+I should have ibgress to support multiple urls and multiple paths with in the url
+The environment variables that are added in values files with be in format key=value which needed to be translated to name="key" and value="value"
+I should be also able to add provision for values-from for the environment variable
+The secrets are loaded in the following format
+
+I should be able to create multiple ingress with the following structure
+ingress:
+  # labels:
+  #   testlabel-1: value1
+  # labels_active:
+  #   testlabel-active-1: value1
+  # labels_preview:
+  #   testlabel-preview-1: value1
+  # annotations:
+  #   testannotation-1: value1
+  # annotations_active:
+  #   testannotation-active-1: value1
+  # annotations_preview:
+  #   testannotation-preview-1: value1
+  data:
+    fk-ingress:
+      enabled: true
+      # labels:
+      #   test-fk-ingress-label: value1
+      # labels-preview:
+      #   test-fk-ingress-label: value1
+      # labels-active:
+      #   test-fk-ingress-label: value1
+      annotations:
+        appgw.ingress.kubernetes.io/request-timeout: "120"
+      annotations_active:
+        appgw.ingress.kubernetes.io/appgw-ssl-certificate: wildcard-fourkites-ssl
+      annotations_preview:
+        appgw.ingress.kubernetes.io/appgw-ssl-certificate: ng-fourkites-com-wildcard-cert
+      className: "azure-application-gateway"
+      hosts:
+        - host: dy.fourkites.com
+          host_preview: dy-preview.ng.fourkites.com
+          paths:
+            - path: /api/*
+              pathType: ImplementationSpecific
+            - path: /auth/*
+              pathType: ImplementationSpecific
+            - path: /tms/*
+              pathType: ImplementationSpecific
+            - path: /gate/*
+              pathType: ImplementationSpecific
+            - path: /wms/*
+              pathType: ImplementationSpecific
+            - path: /occupancy/*
+              pathType: ImplementationSpecific
+Where in case of host_preview is present, then there are two ingress will be create one regular and the other with suffix preview. The labels and annotations for the preview are specified using 

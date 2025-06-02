@@ -1,0 +1,129 @@
+{{- range $jobName, $jobConfig := .Values.jobs }}
+{{- if $jobConfig.enabled }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "generic-chart.fullname" $ }}-{{ $jobName }}
+  labels:
+    {{- include "generic-chart.labels" $ | nindent 4 }}
+    job-name: {{ $jobName }}
+spec:
+  {{- with $jobConfig.backoffLimit }}
+  backoffLimit: {{ . }}
+  {{- end }}
+  {{- with $jobConfig.completions }}
+  completions: {{ . }}
+  {{- end }}
+  {{- with $jobConfig.parallelism }}
+  parallelism: {{ . }}
+  {{- end }}
+  {{- with $jobConfig.activeDeadlineSeconds }}
+  activeDeadlineSeconds: {{ . }}
+  {{- end }}
+  {{- with $jobConfig.ttlSecondsAfterFinished }}
+  ttlSecondsAfterFinished: {{ . }}
+  {{- end }}
+  template:
+    metadata:
+      {{- with $.Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "generic-chart.selectorLabels" $ | nindent 8 }}
+        {{- with $.Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        job-name: {{ $jobName }}
+    spec:
+      {{- with $.Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "generic-chart.serviceAccountName" $ }}
+      securityContext:
+        {{- toYaml $.Values.podSecurityContext | nindent 8 }}
+      restartPolicy: {{ $jobConfig.restartPolicy | default "OnFailure" }}
+      {{- with $.Values.initContainers }}
+      initContainers:
+        {{- range . }}
+        - {{- toYaml . | nindent 10 }}
+        {{- end }}
+      {{- end }}
+      containers:
+        - name: {{ $jobName }}
+          securityContext:
+            {{- toYaml $.Values.securityContext | nindent 12 }}
+          image: "{{ $jobConfig.image.repository | default $.Values.image.repository }}:{{ $jobConfig.image.tag | default $.Values.image.tag | default "latest" }}"
+          imagePullPolicy: {{ $jobConfig.image.pullPolicy | default $.Values.image.pullPolicy }}
+          {{- with $jobConfig.command }}
+          command:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $jobConfig.args }}
+          args:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if or $jobConfig.env $.Values.env }}
+          env:
+            {{- with $.Values.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+            {{- with $jobConfig.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- end }}
+          {{- if or $jobConfig.envFrom $.Values.envFrom }}
+          envFrom:
+            {{- with $.Values.envFrom }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+            {{- with $jobConfig.envFrom }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- end }}
+          resources:
+            {{- toYaml ($jobConfig.resources | default $.Values.resources) | nindent 12 }}
+          {{- if or $jobConfig.volumeMounts $.Values.volumeMounts }}
+          volumeMounts:
+            {{- with $.Values.volumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+            {{- with $jobConfig.volumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- end }}
+        {{- with $jobConfig.sidecarContainers }}
+        {{- range . }}
+        - {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- end }}
+        {{- with $.Values.sidecarContainers }}
+        {{- range . }}
+        - {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- end }}
+      {{- if or $jobConfig.volumes $.Values.volumes }}
+      volumes:
+        {{- with $.Values.volumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with $jobConfig.volumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- end }}
+      {{- with ($jobConfig.nodeSelector | default $.Values.nodeSelector) }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with ($jobConfig.affinity | default $.Values.affinity) }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with ($jobConfig.tolerations | default $.Values.tolerations) }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}
+{{- end }}

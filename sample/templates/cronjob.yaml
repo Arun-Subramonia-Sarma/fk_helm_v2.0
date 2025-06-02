@@ -1,0 +1,38 @@
+{{- if eq .Values.workload.type "cronjob" }}
+{{- if .Values.workload.cronjob.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "generic-chart.fullname" . }}
+  labels:
+    {{- include "generic-chart.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.workload.cronjob.schedule | quote }}
+  concurrencyPolicy: {{ .Values.workload.cronjob.concurrencyPolicy }}
+  failedJobsHistoryLimit: {{ .Values.workload.cronjob.failedJobsHistoryLimit }}
+  successfulJobsHistoryLimit: {{ .Values.workload.cronjob.successfulJobsHistoryLimit }}
+  {{- with .Values.workload.cronjob.startingDeadlineSeconds }}
+  startingDeadlineSeconds: {{ . }}
+  {{- end }}
+  suspend: {{ .Values.workload.cronjob.suspend }}
+  jobTemplate:
+    spec:
+      {{- with .Values.workload.cronjob.jobTemplate.backoffLimit }}
+      backoffLimit: {{ . }}
+      {{- end }}
+      {{- with .Values.workload.cronjob.jobTemplate.completions }}
+      completions: {{ . }}
+      {{- end }}
+      {{- with .Values.workload.cronjob.jobTemplate.parallelism }}
+      parallelism: {{ . }}
+      {{- end }}
+      {{- with .Values.workload.cronjob.jobTemplate.activeDeadlineSeconds }}
+      activeDeadlineSeconds: {{ . }}
+      {{- end }}
+      {{- with .Values.workload.cronjob.jobTemplate.ttlSecondsAfterFinished }}
+      ttlSecondsAfterFinished: {{ . }}
+      {{- end }}
+      template:
+        {{- include "generic-chart.jobPodTemplate" . | nindent 8 }}
+{{- end }}
+{{- end }}
