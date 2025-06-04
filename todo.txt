@@ -1,0 +1,3 @@
+//TODO: Make sure the workload name matches with the version 1.x namings
+//TODO: HPA support for argo rollouts
+//TODO: External Secrets support to be added

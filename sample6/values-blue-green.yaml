@@ -1,0 +1,395 @@
+# Blue-Green Rollout Example with Active/Preview Configuration
+# This configuration demonstrates:
+# - Argo Rollout with blue-green strategy
+# - Different replica counts for active and preview
+# - Separate services for active and preview
+# - Separate ingresses for active and preview
+# - Automatic traffic switching
+
+# Business Labels - Applied to all resources
+businessLabels:
+  bu: "platform"
+  project: "ecommerce"
+  application: "api"
+  env: "production"
+
+# Image configuration
+image:
+  repository: my-company/ecommerce-api
+  pullPolicy: Always
+  tag: "v2.1.0"
+
+# Workload Configuration - Using Argo Rollout
+workload:
+  type: rollout
+  rollout:
+    enabled: true
+    replicas: 5  # This will be the active service replica count
+    revisionHistoryLimit: 10
+    strategy:
+      blueGreen:
+        # Service names for active and preview
+        activeService: ecommerce-api-active
+        previewService: ecommerce-api-preview
+        
+        # Replica management
+        previewReplicaCount: 2  # Preview runs with fewer replicas for cost efficiency
+        scaleDownDelaySeconds: 30
+        
+        # Auto-promotion settings
+        autoPromotionEnabled: false  # Manual approval required
+        
+        # Pre/Post promotion hooks
+        prePromotionAnalysis:
+          templates:
+          - templateName: success-rate
+          args:
+          - name: service-name
+            value: ecommerce-api-preview
+        
+        postPromotionAnalysis:
+          templates:
+          - templateName: success-rate
+          args:
+          - name: service-name
+            value: ecommerce-api-active
+        
+        # Anti-affinity for better distribution
+        antiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution: {}
+          preferredDuringSchedulingIgnoredDuringExecution:
+            weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: ecommerce-api
+              topologyKey: kubernetes.io/hostname
+
+# Multiple Services Configuration
+services:
+  # Active service (production traffic)
+  active:
+    enabled: true
+    type: ClusterIP
+    port: 80
+    targetPort: 8080
+    labels:
+      service-type: "active"
+      traffic-type: "production"
+    annotations:
+      service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+      service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+  
+  # Preview service (testing traffic)
+  preview:
+    enabled: true
+    type: ClusterIP
+    port: 80
+    targetPort: 8080
+    labels:
+      service-type: "preview"
+      traffic-type: "testing"
+    annotations:
+      service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+  
+  # Admin service (management interface)
+  admin:
+    enabled: true
+    type: ClusterIP
+    port: 9090
+    targetPort: 9090
+    labels:
+      service-type: "admin"
+
+# Advanced Ingress with Active/Preview Support
+ingress:
+  # Global labels for all ingresses
+  labels:
+    team: "platform"
+    managed-by: "argo-rollouts"
+  
+  # Active-specific labels
+  labels_active:
+    environment: "production"
+    traffic-split: "active"
+    
+  # Preview-specific labels  
+  labels_preview:
+    environment: "preview"
+    traffic-split: "preview"
+  
+  # Global annotations
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    
+  # Active-specific annotations
+  annotations_active:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    
+  # Preview-specific annotations
+  annotations_preview:
+    cert-manager.io/cluster-issuer: "letsencrypt-staging"
+    nginx.ingress.kubernetes.io/auth-type: "basic"
+    nginx.ingress.kubernetes.io/auth-secret: "preview-auth"
+    nginx.ingress.kubernetes.io/auth-realm: "Preview Environment - Authentication Required"
+  
+  data:
+    # Main API ingress with active/preview split
+    api:
+      enabled: true
+      className: "nginx"
+      
+      # Ingress-specific labels
+      labels:
+        ingress-purpose: "main-api"
+        rollout-integration: "blue-green"
+        
+      # Ingress-specific annotations
+      annotations:
+        nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+        nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+        nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+        
+      # Active-specific ingress annotations
+      annotations_active:
+        nginx.ingress.kubernetes.io/server-snippet: |
+          location /health {
+            access_log off;
+            return 200 "healthy\n";
+          }
+          
+      # Preview-specific ingress annotations  
+      annotations_preview:
+        nginx.ingress.kubernetes.io/server-snippet: |
+          location /health {
+            access_log off;
+            return 200 "preview-healthy\n";
+          }
+          add_header X-Environment "preview" always;
+      
+      hosts:
+        - host: api.mycompany.com
+          host_preview: preview-api.mycompany.com
+          paths:
+            - path: /api/v1
+              pathType: Prefix
+              servicePort: 80
+            - path: /api/v2
+              pathType: Prefix
+              servicePort: 80
+              
+      tls:
+        - secretName: api-mycompany-com-tls
+          hosts:
+            - api.mycompany.com
+            
+      tls_preview:
+        - secretName: preview-api-mycompany-com-tls
+          hosts:
+            - preview-api.mycompany.com
+    
+    # Admin interface ingress (active only)
+    admin:
+      enabled: true
+      className: "nginx"
+      
+      labels:
+        ingress-purpose: "admin-interface"
+        
+      annotations:
+        nginx.ingress.kubernetes.io/auth-type: "basic"
+        nginx.ingress.kubernetes.io/auth-secret: "admin-auth"
+        nginx.ingress.kubernetes.io/whitelist-source-range: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+        
+      hosts:
+        - host: admin.mycompany.com
+          paths:
+            - path: /
+              pathType: Prefix
+              servicePort: 9090
+              
+      tls:
+        - secretName: admin-mycompany-com-tls
+          hosts:
+            - admin.mycompany.com
+
+# Environment Variables
+envVars:
+  PORT: "8080"
+  ADMIN_PORT: "9090"
+  LOG_LEVEL: "info"
+  METRICS_ENABLED: "true"
+  ROLLOUT_MODE: "blue-green"
+
+# Secrets for authentication
+secrets:
+  preview-auth:
+    enabled: true
+    type: Opaque
+    stringData:
+      auth: "preview:$2y$10$2lGGk8ZQ1XFer.j1Pzs3.eGkGxYwsKGnPGNJNSqjrDk8yZNJ5XZ6a"  # preview:preview123
+      
+  admin-auth:
+    enabled: true  
+    type: Opaque
+    stringData:
+      auth: "admin:$2y$10$5jF8KQwCBXdGr.j1Pzs3.eGkGxYwsKGnPGNJNSqjrDk8yZNJ5XZ6a"  # admin:admin123
+
+# Application configuration
+configMaps:
+  app-config:
+    enabled: true
+    data:
+      rollout.yaml: |
+        rollout:
+          strategy: blue-green
+          healthCheck:
+            enabled: true
+            path: /health
+            interval: 30s
+          metrics:
+            prometheus:
+              enabled: true
+              port: 9090
+              path: /metrics
+      
+      feature-flags.yaml: |
+        features:
+          new-checkout-flow: true
+          enhanced-search: false
+          payment-v2: true
+
+# SSL Certificates (mounted as files)
+secrets:
+  ssl-certs:
+    enabled: true
+    type: kubernetes.io/tls
+    mountPath: /etc/ssl/certs
+    defaultMode: 0400
+    data:
+      tls.crt: LS0tLS1CRUdJTi1DRVJUSUZJQ0FURS0tLS0t...  # Base64 encoded certificate
+      tls.key: LS0tLS1CRUdJTi1QUklWQVRFIEtFWS0tLS0t...  # Base64 encoded private key
+
+# External Secrets for database credentials
+externalSecrets:
+  enabled: true
+  refreshInterval: "30s"
+  name: "aws-secret-store"
+  kind: "SecretStore"
+  cloud: "aws"
+  
+  es:
+    database-creds:
+      data:
+        DB_HOST:
+          key: "prod/ecommerce/database"
+          property: "host"
+        DB_USER:
+          key: "prod/ecommerce/database"
+          property: "username"
+        DB_PASSWORD:
+          key: "prod/ecommerce/database"
+          property: "password"
+        DB_NAME:
+          key: "prod/ecommerce/database"
+          property: "database"
+
+# Health checks
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8080
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8080
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+startupProbe:
+  httpGet:
+    path: /startup
+    port: 8080
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 30
+
+# Resource management
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 500m
+    memory: 512Mi
+
+# Horizontal Pod Autoscaler (works with active replicas)
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 20
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Pod Disruption Budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2  # Always keep at least 2 pods running during updates
+
+# Pod labels for monitoring and rollout management
+podLabels:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "9090"
+  prometheus.io/path: "/metrics"
+  rollout-managed: "true"
+  version: "v2.1.0"
+
+# Node scheduling
+nodeSelector:
+  kubernetes.io/arch: amd64
+  node-type: application
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - ecommerce-api
+          topologyKey: kubernetes.io/hostname
+
+# Security context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 2000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+# Service Account with additional permissions for rollouts
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/ecommerce-api-role
+  name: ecommerce-api-sa

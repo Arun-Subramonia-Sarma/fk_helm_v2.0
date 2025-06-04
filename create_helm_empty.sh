@@ -1,0 +1,17 @@
+export FOLDER=sample6
+mkdir $FOLDER
+touch $FOLDER/Charts.yaml
+touch $FOLDER/README.md
+touch $FOLDER/values.yaml
+mkdir $FOLDER/templates
+touch $FOLDER/templates/_helper.tpl
+touch $FOLDER/templates/configmaps.yaml
+touch $FOLDER/templates/cronjobs.yaml
+touch $FOLDER/templates/external-secrets.yaml
+touch $FOLDER/templates/hpa.yaml
+touch $FOLDER/templates/ingress.yaml
+touch $FOLDER/templates/jobs.yaml
+touch $FOLDER/templates/pdb.yaml
+touch $FOLDER/templates/secrets.yaml
+touch $FOLDER/templates/seviceaccounts.yaml
+touch $FOLDER/templates/workloads.yaml

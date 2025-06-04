@@ -1,0 +1,441 @@
+# Default values for generic workload chart
+# This is a YAML-formatted file.
+
+# Global settings
+global:
+  nameOverride: ""
+  fullnameOverride: ""
+
+# Business Labels - Applied to all resources
+businessLabels:
+  bu: "engineering"      # Business Unit
+  project: "api-service" # Project name
+  application: "backend" # Application name
+  env: "production"      # Environment
+
+# Image configuration
+image:
+  repository: nginx
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+imagePullSecrets: []
+
+# Service Account
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# Pod Security Context
+podSecurityContext: {}
+  # fsGroup: 2000
+
+# Container Security Context
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+# Resource limits and requests
+resources: {}
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity: {}
+
+# Pod annotations and labels
+podAnnotations: {}
+podLabels: {}
+
+# Environment variables in key=value format
+envVars: {}
+  # DATABASE_URL: "postgresql://localhost:5432/mydb"
+  # DEBUG: "true"
+  # PORT: "8080"
+
+# Environment variables from valueFrom (secrets, configmaps, field refs)
+envValueFrom: {}
+  # DATABASE_PASSWORD:
+  #   secretKeyRef:
+  #     name: db-secret
+  #     key: password
+  # NODE_NAME:
+  #   fieldRef:
+  #     fieldPath: spec.nodeName
+
+# Environment variables (traditional format)
+env: []
+  # - name: ENV_VAR
+  #   value: "value"
+
+# Environment variables from ConfigMap/Secret
+envFrom: []
+  # - configMapRef:
+  #     name: my-config
+  # - secretRef:
+  #     name: my-secret
+
+# Volume mounts
+volumeMounts: []
+  # - name: config-volume
+  #   mountPath: /etc/config
+
+# Volumes
+volumes: []
+  # - name: config-volume
+  #   configMap:
+  #     name: my-config
+
+# Init containers
+initContainers: []
+  # - name: init-myservice
+  #   image: busybox:1.28
+  #   command: ['sh', '-c', 'until nslookup myservice; do echo waiting for myservice; sleep 2; done;']
+
+# Sidecar containers
+sidecarContainers: []
+  # - name: sidecar
+  #   image: busybox:1.28
+  #   command: ['sleep', '3600']
+
+# Workload Configuration
+workload:
+  # Type of workload: deployment, statefulset, daemonset, rollout
+  type: deployment
+  
+  # Deployment specific settings
+  deployment:
+    enabled: true
+    replicas: 1
+    strategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxUnavailable: 25%
+        maxSurge: 25%
+    revisionHistoryLimit: 10
+  
+  # StatefulSet specific settings
+  statefulset:
+    enabled: false
+    replicas: 1
+    serviceName: ""
+    podManagementPolicy: OrderedReady
+    updateStrategy:
+      type: RollingUpdate
+    volumeClaimTemplates: []
+      # - metadata:
+      #     name: data
+      #   spec:
+      #     accessModes: ["ReadWriteOnce"]
+      #     resources:
+      #       requests:
+      #         storage: 1Gi
+  
+  # DaemonSet specific settings
+  daemonset:
+    enabled: false
+    updateStrategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxUnavailable: 1
+  
+  # Argo Rollouts specific settings
+  rollout:
+    enabled: false
+    replicas: 1
+    revisionHistoryLimit: 10
+    strategy:
+      canary:
+        steps:
+        - setWeight: 20
+        - pause: {}
+        - setWeight: 40
+        - pause: {duration: 10}
+        - setWeight: 60
+        - pause: {duration: 10}
+        - setWeight: 80
+        - pause: {duration: 10}
+
+# Jobs Configuration - All jobs go here (single or multiple)
+jobs: {}
+  # Example jobs with different configurations:
+  # migration:
+  #   enabled: true
+  #   backoffLimit: 6
+  #   completions: 1
+  #   parallelism: 1
+  #   activeDeadlineSeconds: null
+  #   ttlSecondsAfterFinished: 100
+  #   restartPolicy: OnFailure
+  #   image:
+  #     repository: busybox
+  #     tag: latest
+  #   command: ["echo", "Hello Job"]
+  #   resources: {}
+  #   env: []
+  #   volumeMounts: []
+  #   volumes: []
+
+# CronJobs Configuration - All cronjobs go here (single or multiple)
+cronjobs: {}
+  # Example cronjobs:
+  # backup:
+  #   enabled: true
+  #   schedule: "0 2 * * *"
+  #   concurrencyPolicy: Forbid
+  #   failedJobsHistoryLimit: 1
+  #   successfulJobsHistoryLimit: 3
+  #   startingDeadlineSeconds: 300
+  #   suspend: false
+  #   jobTemplate:
+  #     backoffLimit: 3
+  #     completions: 1
+  #     parallelism: 1
+  #     activeDeadlineSeconds: 600
+  #     ttlSecondsAfterFinished: 3600
+  #     restartPolicy: OnFailure
+  #   image:
+  #     repository: postgres
+  #     tag: 13
+  #   command: ["pg_dump", "-h", "postgres-service", "mydb"]
+
+# Multiple Services Configuration
+services: {}
+  # Example multiple services:
+  # api:
+  #   enabled: true
+  #   type: ClusterIP
+  #   port: 80
+  #   targetPort: 8080
+  #   labels:
+  #     service-type: "api"
+  # 
+  # admin:
+  #   enabled: true
+  #   type: NodePort
+  #   port: 9090
+  #   targetPort: 9090
+  #   nodePort: 30090
+
+# Single Service configuration (for backward compatibility)
+service:
+  enabled: true
+  type: ClusterIP
+  port: 80
+  targetPort: 80
+  # nodePort: 30080  # Only for NodePort type
+  annotations: {}
+
+# Multiple ConfigMaps with mount support
+configMaps: {}
+  # Example configurations:
+  # app-config:
+  #   enabled: true
+  #   data:
+  #     config.yaml: |
+  #       database:
+  #         host: postgres
+  #         port: 5432
+  #     app.properties: |
+  #       debug=true
+  #   # WITHOUT mountPath: will be added to envFrom as configMapRef
+  # 
+  # nginx-config:
+  #   enabled: true
+  #   mountPath: /etc/nginx/conf.d  # WITH mountPath: will be mounted as volume
+  #   readOnly: true                 # Optional: defaults to true
+  #   defaultMode: 0644             # Optional: defaults to 420 (0644)
+  #   subPath: nginx.conf           # Optional: mount specific file
+  #   items:                        # Optional: select specific keys
+  #     - key: nginx.conf
+  #       path: default.conf
+  #   data:
+  #     nginx.conf: |
+  #       server {
+  #         listen 80;
+  #         location / {
+  #           proxy_pass http://backend;
+  #         }
+  #       }
+
+# Multiple Secrets with mount support
+secrets: {}
+  # Example configurations:
+  # db-credentials:
+  #   enabled: true
+  #   type: Opaque
+  #   data:
+  #     username: cG9zdGdyZXM=  # base64 encoded
+  #     password: c2VjcmV0cGFzcw==
+  #   # WITHOUT mountPath: will be added to envFrom as secretRef
+  # 
+  # api-keys:
+  #   enabled: true
+  #   type: Opaque
+  #   stringData:  # Plain text (auto-encoded)
+  #     stripe-key: "sk_live_..."
+  #     jwt-secret: "super-secret-key"
+  #   # WITHOUT mountPath: will be added to envFrom as secretRef
+  # 
+  # ssl-certs:
+  #   enabled: true
+  #   type: kubernetes.io/tls
+  #   mountPath: /etc/ssl/certs     # WITH mountPath: will be mounted as volume
+  #   readOnly: true                # Optional: defaults to true
+  #   defaultMode: 0400            # Optional: defaults to 420, but 0400 for certs
+  #   subPath: tls.crt             # Optional: mount specific file
+  #   items:                       # Optional: select specific keys
+  #     - key: tls.crt
+  #       path: server.crt
+  #       mode: 0444
+  #     - key: tls.key
+  #       path: server.key
+  #       mode: 0400
+  #   data:
+  #     tls.crt: LS0tLS1CRUdJTi...  # base64 encoded cert
+  #     tls.key: LS0tLS1CRUdJTi...  # base64 encoded key
+
+# External Secrets Configuration
+externalSecrets:
+  enabled: false
+  refreshInterval: "30s"
+  name: "vault-secret-store"
+  kind: "SecretStore"
+  cloud: "aws"  # aws, gcp, azure, vault
+  
+  # Global labels/annotations for all external secrets
+  labels:
+    external-secrets.io/component: "eso"
+  annotations:
+    external-secrets.io/backend: "aws-secrets-manager"
+  
+  es: {}
+    # Example external secrets with mount support:
+    # database-creds:
+    #   data:
+    #     username:
+    #       key: "prod/database"
+    #       property: "username"
+    #     password:
+    #       key: "prod/database" 
+    #       property: "password"
+    #   # WITHOUT mountPath: will be added to envFrom as secretRef
+    # 
+    # ssl-certificates:
+    #   mountPath: /etc/ssl/external   # WITH mountPath: will be mounted as volume
+    #   readOnly: true                 # Optional: defaults to true
+    #   defaultMode: 0400             # Optional: defaults to 420
+    #   subPath: server.pem           # Optional: mount specific file
+    #   items:                        # Optional: select specific keys to mount
+    #     - key: tls.crt
+    #       path: server.crt
+    #       mode: 0444
+    #   dataFrom:
+    #     - extract:
+    #         key: "prod/ssl-certs"
+    # 
+    # app-secrets:
+    #   dataFrom:
+    #     - find:
+    #         name:
+    #           regexp: "app-.*-secret"
+    #   # WITHOUT mountPath: will be added to envFrom as secretRef
+
+# Advanced Ingress with Active/Preview Support
+ingress:
+  # Global labels/annotations for all ingresses
+  labels:
+    team: "platform"
+  labels_active:
+    environment: "production"
+  labels_preview:
+    environment: "staging"
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+  annotations_active:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  annotations_preview:
+    cert-manager.io/cluster-issuer: "letsencrypt-staging"
+  
+  data: {}
+    # Example ingress configuration:
+    # fk-ingress:
+    #   enabled: true
+    #   # Ingress-specific labels/annotations
+    #   labels:
+    #     ingress-purpose: "main-api"
+    #   annotations:
+    #     appgw.ingress.kubernetes.io/request-timeout: "120"
+    #   annotations_active:
+    #     appgw.ingress.kubernetes.io/appgw-ssl-certificate: wildcard-fourkites-ssl
+    #   annotations_preview:
+    #     appgw.ingress.kubernetes.io/appgw-ssl-certificate: ng-fourkites-com-wildcard-cert
+    #   className: "azure-application-gateway"
+    #   hosts:
+    #     - host: dy.fourkites.com
+    #       host_preview: dy-preview.ng.fourkites.com
+    #       paths:
+    #         - path: /api/*
+    #           pathType: ImplementationSpecific
+    #         - path: /auth/*
+    #           pathType: ImplementationSpecific
+
+# Horizontal Pod Autoscaler
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+# Pod Disruption Budget
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+  # maxUnavailable: 1
+
+# Persistence (for StatefulSets)
+persistence:
+  enabled: false
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 8Gi
+  annotations: {}
+
+# Health checks
+livenessProbe: {}
+  # httpGet:
+  #   path: /health
+  #   port: http
+  # initialDelaySeconds: 30
+  # periodSeconds: 10
+
+readinessProbe: {}
+  # httpGet:
+  #   path: /ready
+  #   port: http
+  # initialDelaySeconds: 5
+  # periodSeconds: 5
+
+startupProbe: {}
+  # httpGet:
+  #   path: /startup
+  #   port: http
+  # initialDelaySeconds: 10
+  # periodSeconds: 10
+  # failureThreshold: 30

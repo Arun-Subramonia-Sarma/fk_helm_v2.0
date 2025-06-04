@@ -62,3 +62,96 @@ ingress:
             - path: /occupancy/*
               pathType: ImplementationSpecific
 Where in case of host_preview is present, then there are two ingress will be create one regular and the other with suffix preview. The labels and annotations for the preview are specified using the preview suffice and for the active version the suffice would be active. labels with no preview and active siffice will be used in both the version
+I have the following external secrets which to be converted to the corrent format
+{{- $fullName := include "application.fullname" . -}}
+{{- $labels := include "application.labels" . -}}
+{{- if and .Values.externalSecrets .Values.externalSecrets.es}}
+{{- range $key, $value := .Values.externalSecrets.es }}
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: {{ $fullName }}-{{ $key }}
+  labels:
+    {{- $labels | trim | nindent 4 }}
+    {{- range $k, $v := $.Values.labels}}
+    {{ $k }}: {{ $v | quote }}
+    {{- end }}
+    {{- with $.Values.externalSecrets.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- with $value.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  annotations:
+{{- if $.Values.update_config }}
+    "helm.sh/hook": "pre-install,pre-upgrade"
+{{- else }}
+    "helm.sh/hook": "pre-install"
+{{- end }}
+    "helm.sh/hook-delete-policy": "before-hook-creation"
+    {{- with $.Values.externalSecrets.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- with $value.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  refreshInterval: {{ $.Values.externalSecrets.refreshInterval}}
+  secretStoreRef:
+    name: {{ $.Values.externalSecrets.name }}
+    kind: {{ $.Values.externalSecrets.kind }}
+  target:
+    name: {{ $fullName }}-{{ $key }}
+    creationPolicy: Owner
+  {{- if $value.data }}
+  data:
+  {{- range $k, $v := $value.data }}
+    - secretKey: {{ $k}}
+      remoteRef:
+        conversionStrategy: {{ $v.conversionStrategy}}
+        decodingStrategy: {{ $v.decodingStrategy}}
+      {{- if $v.key }}
+        key: {{ $v.key }}
+      {{- else }}
+        key: {{ $.Values.externalSecrets.key }}
+      {{- end }}
+      {{- if eq $.Values.cloud "aws" }}
+        property: {{ $v.property}}
+      {{- end }}
+  {{- end }}
+  {{- end }}
+  {{- if $value.dataFrom }}
+  dataFrom:
+  {{- range $dataFrom := $value.dataFrom }}
+    {{- if $dataFrom.extract }}
+    - extract:
+        key: {{ $dataFrom.extract.key }}
+        {{- if $dataFrom.extract.conversionStrategy }}
+        conversionStrategy: {{ $dataFrom.extract.conversionStrategy }}
+        {{- end }}
+        {{- if $dataFrom.extract.decodingStrategy }}
+        decodingStrategy: {{ $dataFrom.extract.decodingStrategy }}
+        {{- end }}
+        {{- if and (eq $.Values.cloud "aws") $dataFrom.extract.property }}
+        property: {{ $dataFrom.extract.property }}
+        {{- end }}
+    {{- end }}
+    {{- if $dataFrom.find }}
+    - find:
+        name:
+          regexp: {{ $dataFrom.find.name.regexp | quote }}
+        {{- if $dataFrom.find.conversionStrategy }}
+        conversionStrategy: {{ $dataFrom.find.conversionStrategy }}
+        {{- end }}
+        {{- if $dataFrom.find.decodingStrategy }}
+        decodingStrategy: {{ $dataFrom.find.decodingStrategy }}
+        {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- end }}
+---
+{{- end}}
+{{- end}}
+
+Add a property to configmap, secrets and external secrets called mountPath. If this is present then the secret, configmap (External secret which is converted into secret) will be mounted as volumes.
+If the mountPath property is not present then configmap, secrets will be added enviornment variable using configmapref and secretref
