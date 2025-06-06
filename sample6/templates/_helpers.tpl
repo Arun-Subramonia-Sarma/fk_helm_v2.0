@@ -327,181 +327,182 @@ Merge environment variables from different sources
 {{/*
 Universal Pod Template - Used by all workload types
 */}}
+{{/*
+Fixed podTemplate helper - addressing the concat error
+*/}}
 {{- define "generic-chart.podTemplate" -}}
-{{- $workloadConfig := .workloadConfig | default dict }}
-{{- $globalConfig := .globalConfig | default . }}
-{{- $podConfig := .podConfig | default dict }}
-{{- $containerConfig := .containerConfig | default dict }}
-{{- $jobName := .jobName | default "" }}
-metadata:
-  {{- $podAnnotations := list }}
-  {{- if $globalConfig.Values.podAnnotations }}
-    {{- $podAnnotations = append $podAnnotations $globalConfig.Values.podAnnotations }}
-  {{- end }}
-  {{- if $podConfig.annotations }}
-    {{- $podAnnotations = append $podAnnotations $podConfig.annotations }}
-  {{- end }}
-  {{- if $containerConfig.podAnnotations }}
-    {{- $podAnnotations = append $podAnnotations $containerConfig.podAnnotations }}
-  {{- end }}
-  {{- if $podAnnotations }}
-  annotations:
-    {{- include "generic-chart.mergeAnnotations" $podAnnotations | nindent 4 }}
-  {{- end }}
-  labels:
-    {{- include "generic-chart.selectorLabels" $globalConfig | nindent 4 }}
-    {{- $podLabels := list }}
-    {{- if $globalConfig.Values.podLabels }}
-      {{- $podLabels = append $podLabels $globalConfig.Values.podLabels }}
-    {{- end }}
-    {{- if $podConfig.labels }}
-      {{- $podLabels = append $podLabels $podConfig.labels }}
-    {{- end }}
-    {{- if $containerConfig.podLabels }}
-      {{- $podLabels = append $podLabels $containerConfig.podLabels }}
-    {{- end }}
-    {{- if $podConfig.additionalLabels }}
-      {{- $podLabels = append $podLabels $podConfig.additionalLabels }}
-    {{- end }}
-    {{- if $jobName }}
-    jobname: {{ $jobName | quote }}
-    {{- end }}
-    {{- if $podLabels }}
-    {{- include "generic-chart.mergeLabels" $podLabels | nindent 4 }}
-    {{- end }}
+{{- $globalConfig := .globalConfig -}}
+{{- $podConfig := .podConfig -}}
+
+{{/* Initialize variables */}}
+{{- $envFromVars := list -}}
+{{- $autoEnvFrom := list -}}
+
+{{/* Process envFrom configurations */}}
+{{- if $podConfig.envFrom -}}
+  {{- if kindIs "slice" $podConfig.envFrom -}}
+    {{- $envFromVars = $podConfig.envFrom -}}
+  {{- else if kindIs "map" $podConfig.envFrom -}}
+    {{/* Convert map to list format */}}
+    {{- range $key, $value := $podConfig.envFrom -}}
+      {{- if kindIs "map" $value -}}
+        {{- $envFromVars = append $envFromVars $value -}}
+      {{- else -}}
+        {{- $envFromVars = append $envFromVars (dict $key $value) -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+
+{{/* Process auto envFrom configurations */}}
+{{- if $globalConfig.Values.autoEnvFrom -}}
+  {{- if kindIs "slice" $globalConfig.Values.autoEnvFrom -}}
+    {{- $autoEnvFrom = $globalConfig.Values.autoEnvFrom -}}
+  {{- else if kindIs "map" $globalConfig.Values.autoEnvFrom -}}
+    {{/* Convert map to list format */}}
+    {{- range $key, $value := $globalConfig.Values.autoEnvFrom -}}
+      {{- if kindIs "map" $value -}}
+        {{- $autoEnvFrom = append $autoEnvFrom $value -}}
+      {{- else -}}
+        {{- $autoEnvFrom = append $autoEnvFrom (dict $key $value) -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+
+{{/* Combine envFrom lists safely */}}
+{{- $combinedEnvFrom := list -}}
+{{- if $envFromVars -}}
+  {{- $combinedEnvFrom = $envFromVars -}}
+{{- end -}}
+{{- if $autoEnvFrom -}}
+  {{- $combinedEnvFrom = concat $combinedEnvFrom $autoEnvFrom -}}
+{{- end -}}
+
 spec:
-  {{- with (coalesce $containerConfig.imagePullSecrets $globalConfig.Values.imagePullSecrets) }}
-  imagePullSecrets:
+  {{- with $podConfig.serviceAccountName }}
+  serviceAccountName: {{ . }}
+  {{- end }}
+  
+  {{- with $podConfig.securityContext }}
+  securityContext:
     {{- toYaml . | nindent 4 }}
   {{- end }}
-  serviceAccountName: {{ include "generic-chart.serviceAccountName" $globalConfig }}
-  securityContext:
-    {{- toYaml (coalesce $containerConfig.podSecurityContext $globalConfig.Values.podSecurityContext) | nindent 4 }}
-  {{- with $podConfig.restartPolicy }}
-  restartPolicy: {{ . }}
-  {{- end }}
-  {{- $initContainers := list }}
-  {{- if $globalConfig.Values.initContainers }}
-    {{- $initContainers = concat $initContainers $globalConfig.Values.initContainers }}
-  {{- end }}
-  {{- if $containerConfig.initContainers }}
-    {{- $initContainers = concat $initContainers $containerConfig.initContainers }}
-  {{- end }}
-  {{- if $initContainers }}
-  initContainers:
-    {{- range $initContainers }}
-    - {{- toYaml . | nindent 6 }}
-    {{- end }}
-  {{- end }}
-  containers:
-    - name: {{ $containerConfig.name | default $globalConfig.Chart.Name }}
-      securityContext:
-        {{- toYaml (coalesce $containerConfig.securityContext $globalConfig.Values.securityContext) | nindent 8 }}
-      image: "{{ coalesce $containerConfig.repository $globalConfig.Values.image.repository }}:{{ coalesce $containerConfig.tag $globalConfig.Values.image.tag $globalConfig.Chart.AppVersion }}"
-      imagePullPolicy: {{ coalesce $containerConfig.pullPolicy $globalConfig.Values.image.pullPolicy }}
-      {{- with $containerConfig.command }}
-      command:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with $containerConfig.args }}
-      args:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- $mergedEnvVars := include "generic-chart.mergedEnvVars" (dict "globalConfig" $globalConfig "containerConfig" $containerConfig) | fromYaml }}
-      {{- if $mergedEnvVars }}
-      env:
-        {{- toYaml $mergedEnvVars | nindent 8 }}
-      {{- end }}
-      {{- $envFromVars := list }}
-      {{- if $globalConfig.Values.envFrom }}
-        {{- $envFromVars = concat $envFromVars $globalConfig.Values.envFrom }}
-      {{- end }}
-      {{- if $containerConfig.envFrom }}
-        {{- $envFromVars = concat $envFromVars $containerConfig.envFrom }}
-      {{- end }}
-      {{/* Add auto-generated envFrom for secrets/configmaps without mountPath */}}
-      {{- $autoEnvFrom := include "generic-chart.autoEnvFrom" (dict "globalConfig" $globalConfig) | fromYaml }}
-      {{- if $autoEnvFrom }}
-        {{- $envFromVars = concat $envFromVars $autoEnvFrom }}
-      {{- end }}
-      {{- if $envFromVars }}
-      envFrom:
-        {{- toYaml $envFromVars | nindent 8 }}
-      {{- end }}
-      {{- if and (or $globalConfig.Values.services (and $globalConfig.Values.service $globalConfig.Values.service.enabled)) (not $podConfig.restartPolicy) }}
-      ports:
-        - name: http
-          containerPort: {{ $globalConfig.Values.service.targetPort | default 8080 }}
-          protocol: TCP
-      {{- end }}
-      {{- if and (not $podConfig.restartPolicy) $globalConfig.Values.livenessProbe }}
-      livenessProbe:
-        {{- toYaml $globalConfig.Values.livenessProbe | nindent 8 }}
-      {{- end }}
-      {{- if and (not $podConfig.restartPolicy) $globalConfig.Values.readinessProbe }}
-      readinessProbe:
-        {{- toYaml $globalConfig.Values.readinessProbe | nindent 8 }}
-      {{- end }}
-      {{- if and (not $podConfig.restartPolicy) $globalConfig.Values.startupProbe }}
-      startupProbe:
-        {{- toYaml $globalConfig.Values.startupProbe | nindent 8 }}
-      {{- end }}
-      resources:
-        {{- toYaml (coalesce $containerConfig.resources $globalConfig.Values.resources) | nindent 8 }}
-      {{- $volumeMounts := list }}
-      {{- if $globalConfig.Values.volumeMounts }}
-        {{- $volumeMounts = concat $volumeMounts $globalConfig.Values.volumeMounts }}
-      {{- end }}
-      {{- if $containerConfig.volumeMounts }}
-        {{- $volumeMounts = concat $volumeMounts $containerConfig.volumeMounts }}
-      {{- end }}
-      {{/* Add auto-generated volume mounts from secrets/configmaps with mountPath */}}
-      {{- $autoVolumeMounts := include "generic-chart.autoVolumeMounts" (dict "globalConfig" $globalConfig) | fromYaml }}
-      {{- if $autoVolumeMounts }}
-        {{- $volumeMounts = concat $volumeMounts $autoVolumeMounts }}
-      {{- end }}
-      {{- if $volumeMounts }}
-      volumeMounts:
-        {{- toYaml $volumeMounts | nindent 8 }}
-      {{- end }}
-    {{- $sidecarContainers := list }}
-    {{- if $globalConfig.Values.sidecarContainers }}
-      {{- $sidecarContainers = concat $sidecarContainers $globalConfig.Values.sidecarContainers }}
-    {{- end }}
-    {{- if $containerConfig.sidecarContainers }}
-      {{- $sidecarContainers = concat $sidecarContainers $containerConfig.sidecarContainers }}
-    {{- end }}
-    {{- if $sidecarContainers }}
-    {{- range $sidecarContainers }}
-    - {{- toYaml . | nindent 6 }}
-    {{- end }}
-    {{- end }}
-  {{- $volumes := list }}
-  {{- if $globalConfig.Values.volumes }}
-    {{- $volumes = concat $volumes $globalConfig.Values.volumes }}
-  {{- end }}
-  {{- if $containerConfig.volumes }}
-    {{- $volumes = concat $volumes $containerConfig.volumes }}
-  {{- end }}
-  {{/* Add auto-generated volumes from secrets/configmaps with mountPath */}}
-  {{- $autoVolumes := include "generic-chart.autoVolumes" (dict "globalConfig" $globalConfig) | fromYaml }}
-  {{- if $autoVolumes }}
-    {{- $volumes = concat $volumes $autoVolumes }}
-  {{- end }}
-  {{- if $volumes }}
-  volumes:
-    {{- toYaml $volumes | nindent 4 }}
-  {{- end }}
-  {{- with (coalesce $containerConfig.nodeSelector $globalConfig.Values.nodeSelector) }}
+  
+  {{- with $podConfig.nodeSelector }}
   nodeSelector:
     {{- toYaml . | nindent 4 }}
   {{- end }}
-  {{- with (coalesce $containerConfig.affinity $globalConfig.Values.affinity) }}
-  affinity:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
-  {{- with (coalesce $containerConfig.tolerations $globalConfig.Values.tolerations) }}
+  
+  {{- with $podConfig.tolerations }}
   tolerations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
+  
+  {{- with $podConfig.affinity }}
+  affinity:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  
+  containers:
+  - name: {{ $podConfig.name | default "main" }}
+    image: {{ $podConfig.image.repository }}:{{ $podConfig.image.tag }}
+    imagePullPolicy: {{ $podConfig.image.pullPolicy | default "IfNotPresent" }}
+    
+    {{- with $podConfig.ports }}
+    ports:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    
+    {{- with $podConfig.env }}
+    env:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    
+    {{- if $combinedEnvFrom }}
+    envFrom:
+      {{- toYaml $combinedEnvFrom | nindent 6 }}
+    {{- end }}
+    
+    {{- with $podConfig.resources }}
+    resources:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    
+    {{- with $podConfig.volumeMounts }}
+    volumeMounts:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    
+    {{- with $podConfig.livenessProbe }}
+    livenessProbe:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    
+    {{- with $podConfig.readinessProbe }}
+    readinessProbe:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  
+  {{- with $podConfig.volumes }}
+  volumes:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 {{- end }}
+
+{{/*
+Alternative approach - if you want to merge environment variables differently
+*/}}
+{{- define "generic-chart.podTemplate.alternative" -}}
+{{- $globalConfig := .globalConfig -}}
+{{- $podConfig := .podConfig -}}
+
+{{/* Safe environment variable merging */}}
+{{- $allEnvFrom := list -}}
+
+{{/* Add podConfig envFrom if it exists and is a list */}}
+{{- if and $podConfig.envFrom (kindIs "slice" $podConfig.envFrom) -}}
+  {{- $allEnvFrom = $podConfig.envFrom -}}
+{{- end -}}
+
+{{/* Add global autoEnvFrom if it exists and is a list */}}
+{{- if and $globalConfig.Values.autoEnvFrom (kindIs "slice" $globalConfig.Values.autoEnvFrom) -}}
+  {{- $allEnvFrom = concat $allEnvFrom $globalConfig.Values.autoEnvFrom -}}
+{{- end -}}
+
+spec:
+  containers:
+  - name: {{ $podConfig.name | default "main" }}
+    image: {{ $podConfig.image.repository }}:{{ $podConfig.image.tag }}
+    
+    {{- if $allEnvFrom }}
+    envFrom:
+      {{- range $allEnvFrom }}
+      - {{ toYaml . | nindent 8 }}
+      {{- end }}
+    {{- end }}
+    
+    {{/* Rest of your container spec */}}
+{{- end }}
+
+{{/*
+Debug helper to check data types
+*/}}
+{{- define "generic-chart.debugTypes" -}}
+{{- $globalConfig := .globalConfig -}}
+{{- $podConfig := .podConfig -}}
+
+# Debug Information:
+# podConfig.envFrom type: {{ kindOf $podConfig.envFrom }}
+# globalConfig.Values.autoEnvFrom type: {{ kindOf $globalConfig.Values.autoEnvFrom }}
+
+{{- if $podConfig.envFrom }}
+# podConfig.envFrom content:
+{{ toYaml $podConfig.envFrom | nindent 2 }}
+{{- end }}
+
+{{- if $globalConfig.Values.autoEnvFrom }}
+# globalConfig.Values.autoEnvFrom content:
+{{ toYaml $globalConfig.Values.autoEnvFrom | nindent 2 }}
+{{- end }}
+{{- end }}}
