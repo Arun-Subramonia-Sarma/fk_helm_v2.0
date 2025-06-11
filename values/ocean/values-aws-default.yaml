@@ -1,0 +1,18 @@
+# AWS Default values for booking-service using generic workload chart
+# Minimal configuration file for AWS defaults
+
+# Business Labels - Applied to all resources
+businessLabels:
+  bu: "ocean"
+  project: "booking-service"
+  application: "booking-api"
+  env: "aws-default"
+
+# External Secrets Configuration for AWS
+externalSecrets:
+  enabled: true
+  cloud: "aws"
+  refreshInterval: "30s"
+
+# Additional labels (empty by default)
+labels: {}

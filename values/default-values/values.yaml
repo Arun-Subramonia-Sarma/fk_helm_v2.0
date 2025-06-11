@@ -116,7 +116,7 @@ sidecarContainers: []
 # Workload Configuration
 workload:
   # Type of workload: deployment, statefulset, daemonset, rollout
-  type: Deployment
+  type: deployment
   
   # Deployment specific settings
   deployment:
@@ -173,7 +173,7 @@ workload:
 
 # Jobs Configuration - All jobs go here (single or multiple)
 jobs: {}
-  # Example jobs with different configurations:
+  # Example single job:
   # migration:
   #   enabled: true
   #   backoffLimit: 6
@@ -190,10 +190,38 @@ jobs: {}
   #   env: []
   #   volumeMounts: []
   #   volumes: []
+  # 
+  # Example multiple jobs:
+  # data-migration:
+  #   enabled: true
+  #   backoffLimit: 6
+  #   completions: 1
+  #   parallelism: 1
+  #   restartPolicy: OnFailure
+  #   image:
+  #     repository: my-app
+  #     tag: migrate-v1.0
+  #   command: ["python", "migrate.py"]
+  #   env:
+  #   - name: DB_HOST
+  #     value: "postgres-service"
+  # 
+  # data-import:
+  #   enabled: true
+  #   completions: 5
+  #   parallelism: 2
+  #   image:
+  #     repository: my-app
+  #     tag: import-v1.0
+  #   command: ["python", "import_data.py"]
+  #   resources:
+  #     requests:
+  #       cpu: 100m
+  #       memory: 256Mi
 
 # CronJobs Configuration - All cronjobs go here (single or multiple)
 cronjobs: {}
-  # Example cronjobs:
+  # Example single cronjob:
   # backup:
   #   enabled: true
   #   schedule: "0 2 * * *"
@@ -213,6 +241,31 @@ cronjobs: {}
   #     repository: postgres
   #     tag: 13
   #   command: ["pg_dump", "-h", "postgres-service", "mydb"]
+  #   env:
+  #     - name: PGPASSWORD
+  #       valueFrom:
+  #         secretKeyRef:
+  #           name: postgres-secret
+  #           key: password
+  # 
+  # Example multiple cronjobs:
+  # daily-backup:
+  #   enabled: true
+  #   schedule: "0 2 * * *"
+  #   concurrencyPolicy: Forbid
+  #   image:
+  #     repository: postgres
+  #     tag: 13
+  #   command: ["pg_dump", "-h", "postgres-service", "mydb"]
+  # 
+  # weekly-cleanup:
+  #   enabled: true
+  #   schedule: "0 0 * * 0"
+  #   concurrencyPolicy: Allow
+  #   image:
+  #     repository: busybox
+  #     tag: latest
+  #   command: ["sh", "-c", "find /tmp -type f -mtime +7 -delete"]
 
 # Multiple Services Configuration
 services: {}

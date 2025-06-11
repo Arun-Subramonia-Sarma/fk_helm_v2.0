@@ -1,0 +1,237 @@
+# Production values for booking-service using generic workload chart
+# This is a YAML-formatted file.
+
+# Global settings
+global:
+  nameOverride: "booking-service"
+  fullnameOverride: "booking-service"
+
+# Business Labels - Applied to all resources
+businessLabels:
+  bu: "ocean"
+  project: "booking-service" 
+  application: "booking-api"
+  env: "production"
+
+# Image configuration
+image:
+  repository: 108177350548.dkr.ecr.us-east-1.amazonaws.com/booking-service
+  pullPolicy: Always
+  tag: "v0.0.1-rel361-52c9ede"
+
+# Service Account
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::723008196684:role/booking-service-role"
+  name: "booking-service-sa"
+
+# Workload Configuration - Using Argo Rollout with Blue-Green Strategy
+workload:
+  type: rollout
+  rollout:
+    enabled: true
+    replicas: 6
+    revisionHistoryLimit: 10
+    strategy:
+      blueGreen:
+        activeService: booking-service-active
+        previewService: booking-service-preview
+        previewReplicaCount: 3  # Cost-effective preview size
+        scaleDownDelaySeconds: 30
+        autoPromotionEnabled: false  # Manual approval required
+
+# Multiple Services Configuration for Blue-Green
+services:
+  # Active service (production traffic)
+  active:
+    enabled: true
+    type: ClusterIP
+    port: 80
+    targetPort: 5000
+    labels:
+      service-type: "active"
+      traffic-type: "production"
+  
+  # Preview service (testing traffic) 
+  preview:
+    enabled: true
+    type: ClusterIP
+    port: 80
+    targetPort: 5000
+    labels:
+      service-type: "preview"
+      traffic-type: "testing"
+
+# Resource limits and requests
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1536Mi
+  requests:
+    cpu: 500m
+    memory: 1536Mi
+
+# Environment variables in key=value format
+envVars:
+  # AWS Production specific
+  AWS_ACCOUNTID: "723008196684"
+  ENVIRONMENTVARIABLES_USERSERVICEURL: "https://user-api.fourkites.com"
+  FEATURE_LIMITSTATUS: "Subscription Created"
+  
+  # Environment identification  
+  ENV: "production"
+  FK_ENVIRONMENT: "production"
+  FK_ENV: "production"
+  LOGGER_FILENAME: "booking-service-production.log"
+  
+  # OTEL PARAMETERS for production
+  OTEL_ENABLED: "true"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://opentelemetry-collector.telemetry:4317"
+  OTEL_RESOURCE_ATTRIBUTES: "service.name=booking-service,deployment.environment=production,service.instance.id=$(POD_NAME),k8s.pod.name=$(POD_NAME),k8s.namespace.name=$(NAMESPACE_NAME),k8s.node.name=$(NODE_NAME)"
+  OTEL_SERVICE_NAME: "booking-service"
+  TELEMETRY_ENABLED: "true"
+  OTEL_TRACES_SAMPLER: "traceidratio"
+  OTEL_TRACES_SAMPLER_ARG: "0.05"
+  
+  # Database configuration
+  DB_MAXCONNECTIONS: "4"
+  DB_MAXIDLECONNECTIONS: "4" 
+  DB_PORT: "5432"
+  DB_SSLMODE: "disable"
+  
+  # Logging configuration
+  LOGGER_DIRECTORY: "/var/log/"
+  LOGGER_LOGLEVEL: "INFO"
+  LOG_TO_STDOUT: "true"
+  
+  # AWS configuration
+  AWS_MULTIMODALQUEUESUFFIX: "-multimodal-worker"
+  AWS_REGION: "us-east-1"
+  SERVER_PORT: ":5000"
+
+# Environment variables for complex arrays (when simple key=value won't work)
+env:
+  - name: FEATURE_UPDATEBOOKING
+    value: '["ford-india-ocean-pilot", "test-ocean-shipper"]'
+
+
+# Advanced Ingress with Active/Preview Support for Blue-Green
+ingress:
+  # Global annotations
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    
+  # Active-specific annotations
+  annotations_active:
+    appgw.ingress.kubernetes.io/appgw-ssl-certificate: "wildcard-fourkites-ssl"
+    
+  # Preview-specific annotations (could use different cert)
+  annotations_preview:
+    appgw.ingress.kubernetes.io/appgw-ssl-certificate: "wildcard-fourkites-ssl"
+  
+  data:
+    fk-ingress:
+      enabled: true
+      className: "nginx"
+      annotations:
+        appgw.ingress.kubernetes.io/appgw-ssl-certificate: "wildcard-fourkites-ssl"
+      hosts:
+        - host: booking-api.fourkites.com
+          host_preview: booking-api-preview.fourkites.com
+          paths:
+            - path: /
+              pathType: Prefix
+              servicePort: 80
+
+# External Secrets Configuration for Production
+externalSecrets:
+  enabled: true
+  refreshInterval: "30s"
+  name: "prod-cluster-secretstore"
+  kind: "SecretStore"
+  cloud: "aws"
+  
+  es:
+    # Production secrets (will be loaded as environment variables)
+    app-secrets:
+      data:
+        DB_HOST:
+          key: "prod/app/booking-service"
+          property: "DB_HOST"
+        DB_USER:
+          key: "prod/app/booking-service"
+          property: "DB_USER"
+        DB_PASSWORD:
+          key: "prod/app/booking-service"
+          property: "DB_PASSWORD"
+        DB_DBNAME:
+          key: "prod/app/booking-service"
+          property: "DB_DBNAME"
+        BOOKING_SERVICE_MIGRATION_USER:
+          key: "prod/app/booking-service"
+          property: "BOOKING_SERVICE_MIGRATION_USER"
+        BOOKING_SERVICE_MIGRATION_PASSWORD:
+          key: "prod/app/booking-service"
+          property: "BOOKING_SERVICE_MIGRATION_PASSWORD"
+        ENVIRONMENTVARIABLES_FOURKITESAPPID:
+          key: "prod/app/booking-service"
+          property: "ENVIRONMENTVARIABLES_FOURKITESAPPID"
+        ENVIRONMENTVARIABLES_SHAREDAPPSECRET:
+          key: "prod/app/booking-service"
+          property: "ENVIRONMENTVARIABLES_SHAREDAPPSECRET"
+        GITHUB_TOKEN:
+          key: "prod/app/booking-service"
+          property: "GITHUB_TOKEN"
+
+# Horizontal Pod Autoscaler for Production
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Pod Disruption Budget for Production
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+# Health checks (same as default)
+livenessProbe:
+  httpGet:
+    path: /internal/v1/health_check
+    port: 5000
+    scheme: HTTP
+  failureThreshold: 3
+  periodSeconds: 40
+  successThreshold: 1
+  timeoutSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /internal/v1/health_check
+    port: 5000
+    scheme: HTTP
+  failureThreshold: 3
+  periodSeconds: 40
+  successThreshold: 1
+  timeoutSeconds: 10
+
+# Node scheduling for production workloads
+nodeSelector:
+  product: ocean
+
+tolerations:
+  - key: "product"
+    operator: "Equal"
+    value: "ocean"
+    effect: "NoSchedule"
+
+affinity: {}
+
+# ConfigMaps (empty for now)
+configMaps: {}
+
+# Secrets (empty - using external secrets)
+secrets: {}

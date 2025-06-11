@@ -1,0 +1,97 @@
+{{- range $cronJobName, $cronJobConfig := .Values.cronjobs }}
+{{- if $cronJobConfig.enabled }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "generic-chart.fullname" $ }}-{{ $cronJobName }}
+  labels:
+    {{- include "generic-chart.labels" $ | nindent 4 }}
+    jobname: {{ $cronJobName | quote }}
+    {{- $cronJobLabels := list }}
+    {{- if $.Values.workloadLabels }}
+      {{- $cronJobLabels = append $cronJobLabels $.Values.workloadLabels }}
+    {{- end }}
+    {{- if $cronJobConfig.labels }}
+      {{- $cronJobLabels = append $cronJobLabels $cronJobConfig.labels }}
+    {{- end }}
+    {{- if $cronJobLabels }}
+    {{- include "generic-chart.mergeLabels" $cronJobLabels | nindent 4 }}
+    {{- end }}
+  {{- $cronJobAnnotations := list }}
+  {{- if $.Values.workloadAnnotations }}
+    {{- $cronJobAnnotations = append $cronJobAnnotations $.Values.workloadAnnotations }}
+  {{- end }}
+  {{- if $cronJobConfig.annotations }}
+    {{- $cronJobAnnotations = append $cronJobAnnotations $cronJobConfig.annotations }}
+  {{- end }}
+  {{- if $cronJobAnnotations }}
+  annotations:
+    {{- include "generic-chart.mergeAnnotations" $cronJobAnnotations | nindent 4 }}
+  {{- end }}
+spec:
+  schedule: {{ $cronJobConfig.schedule | quote }}
+  concurrencyPolicy: {{ $cronJobConfig.concurrencyPolicy | default "Allow" }}
+  failedJobsHistoryLimit: {{ $cronJobConfig.failedJobsHistoryLimit | default 1 }}
+  successfulJobsHistoryLimit: {{ $cronJobConfig.successfulJobsHistoryLimit | default 3 }}
+  {{- with $cronJobConfig.startingDeadlineSeconds }}
+  startingDeadlineSeconds: {{ . }}
+  {{- end }}
+  suspend: {{ $cronJobConfig.suspend | default false }}
+  jobTemplate:
+    spec:
+      {{- with $cronJobConfig.jobTemplate.backoffLimit }}
+      backoffLimit: {{ . }}
+      {{- end }}
+      {{- with $cronJobConfig.jobTemplate.completions }}
+      completions: {{ . }}
+      {{- end }}
+      {{- with $cronJobConfig.jobTemplate.parallelism }}
+      parallelism: {{ . }}
+      {{- end }}
+      {{- with $cronJobConfig.jobTemplate.activeDeadlineSeconds }}
+      activeDeadlineSeconds: {{ . }}
+      {{- end }}
+      {{- with $cronJobConfig.jobTemplate.ttlSecondsAfterFinished }}
+      ttlSecondsAfterFinished: {{ . }}
+      {{- end }}
+      template:
+        {{- $cronJobPodConfig := dict 
+            "restartPolicy" ($cronJobConfig.jobTemplate.restartPolicy | default "OnFailure")
+            "additionalLabels" (dict "jobname" $cronJobName)
+            "annotations" $cronJobConfig.podAnnotations
+            "labels" $cronJobConfig.podLabels
+            "nodeSelector" $cronJobConfig.nodeSelector
+            "affinity" $cronJobConfig.affinity
+            "tolerations" $cronJobConfig.tolerations
+            "imagePullSecrets" $cronJobConfig.imagePullSecrets
+            "podSecurityContext" $cronJobConfig.podSecurityContext
+        }}
+        {{- $cronJobContainerConfig := dict 
+            "name" $cronJobName
+            "repository" ($cronJobConfig.image.repository | default $.Values.image.repository)
+            "tag" ($cronJobConfig.image.tag | default $.Values.image.tag)
+            "pullPolicy" ($cronJobConfig.image.pullPolicy | default $.Values.image.pullPolicy)
+            "command" $cronJobConfig.command
+            "args" $cronJobConfig.args
+            "env" $cronJobConfig.env
+            "envVars" $cronJobConfig.envVars
+            "envValueFrom" $cronJobConfig.envValueFrom
+            "envFrom" $cronJobConfig.envFrom
+            "resources" ($cronJobConfig.resources | default $.Values.resources)
+            "volumeMounts" $cronJobConfig.volumeMounts
+            "volumes" $cronJobConfig.volumes
+            "sidecarContainers" $cronJobConfig.sidecarContainers
+            "securityContext" $cronJobConfig.securityContext
+            "initContainers" $cronJobConfig.initContainers
+            "podAnnotations" $cronJobConfig.podAnnotations
+            "podLabels" $cronJobConfig.podLabels
+        }}
+        {{- include "generic-chart.podTemplate" (dict 
+            "globalConfig" $ 
+            "podConfig" $cronJobPodConfig 
+            "containerConfig" $cronJobContainerConfig
+            "jobName" $cronJobName
+        ) | nindent 8 }}
+{{- end }}
+{{- end }}

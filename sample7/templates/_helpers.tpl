@@ -74,32 +74,44 @@ Create the name of the service account to use
 {{- end }}
 
 {{/*
-Merge labels helper - Merges multiple label dictionaries
+CONSOLIDATED LABEL AND ANNOTATION MERGING HELPERS
+These helpers merge multiple label/annotation dictionaries with deduplication
+Usage: {{ include "generic-chart.mergeLabels" (list $labels1 $labels2 $labels3) }}
 */}}
 {{- define "generic-chart.mergeLabels" -}}
-{{- $result := dict }}
-{{- range . }}
-  {{- range $key, $value := . }}
-    {{- $_ := set $result $key $value }}
-  {{- end }}
-{{- end }}
-{{- toYaml $result }}
+{{- $merged := dict -}}
+{{- range . -}}
+  {{- if . -}}
+    {{- range $key, $value := . -}}
+      {{- $_ := set $merged $key $value -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+{{- if $merged -}}
+{{- toYaml $merged -}}
+{{- end -}}
 {{- end }}
 
 {{/*
 Merge annotations helper - Merges multiple annotation dictionaries
+Usage: {{ include "generic-chart.mergeAnnotations" (list $annotations1 $annotations2) }}
 */}}
 {{- define "generic-chart.mergeAnnotations" -}}
-{{- $result := dict }}
-{{- range . }}
-  {{- range $key, $value := . }}
-    {{- $_ := set $result $key $value }}
-  {{- end }}
-{{- end }}
-{{- toYaml $result }}
+{{- $merged := dict -}}
+{{- range . -}}
+  {{- if . -}}
+    {{- range $key, $value := . -}}
+      {{- $_ := set $merged $key $value -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+{{- if $merged -}}
+{{- toYaml $merged -}}
+{{- end -}}
 {{- end }}
 
 {{/*
+VOLUME AND MOUNT HELPERS
 Generate volumes from secrets, configmaps, and external secrets that have mountPath
 */}}
 {{- define "generic-chart.autoVolumes" -}}
@@ -228,24 +240,7 @@ Generate volume mounts from secrets, configmaps, and external secrets that have 
 {{- end }}
 
 {{/*
-Merge multiple label maps with deduplication
-Usage: {{ include "generic-chart.mergeLabels" (list $labels1 $labels2 $labels3) }}
-*/}}
-{{- define "generic-chart.mergeLabels" -}}
-{{- $merged := dict -}}
-{{- range . -}}
-  {{- if . -}}
-    {{- range $key, $value := . -}}
-      {{- $_ := set $merged $key $value -}}
-    {{- end -}}
-  {{- end -}}
-{{- end -}}
-{{- if $merged -}}
-{{- toYaml $merged -}}
-{{- end -}}
-{{- end }}
-
-{{/*
+ENVIRONMENT VARIABLE HELPERS
 Generate envFrom for secrets and configmaps that do NOT have mountPath
 */}}
 {{- define "generic-chart.autoEnvFrom" -}}
@@ -343,19 +338,14 @@ Merge environment variables from different sources
 {{- end }}
 
 {{/*
-Universal Pod Template - Used by all workload types
-*/}}
-{{/*
-Fixed podTemplate helper - addressing the concat error
-*/}}
-{{/*
-Robust podTemplate helper with nil pointer protection
+POD TEMPLATE HELPERS
+Universal Pod Template - Used by all workload types with robust error handling
 */}}
 {{- define "generic-chart.podTemplate" -}}
 {{- $globalConfig := .globalConfig -}}
 {{- $podConfig := .podConfig | default dict -}}
 
-{{/* Safe defaults */}}
+{{/* Safe image construction */}}
 {{- $imageName := "nginx:latest" -}}
 {{- if and $podConfig.image $podConfig.image.repository $podConfig.image.tag -}}
   {{- $imageName = printf "%s:%s" $podConfig.image.repository $podConfig.image.tag -}}
@@ -493,18 +483,7 @@ spec:
 {{- end }}
 
 {{/*
-Alternative approach - pass actual pod configuration instead of empty dict
-*/}}
-{{- define "generic-chart.workloadPodTemplate" -}}
-{{- $workloadType := .workloadType -}}
-{{- $globalConfig := .globalConfig -}}
-{{- $podConfig := .podConfig | default $globalConfig.Values.podTemplate | default dict -}}
-
-{{/* Use the robust podTemplate */}}
-{{- include "generic-chart.podTemplate" (dict "globalConfig" $globalConfig "podConfig" $podConfig) -}}
-{{- end }}
-
-{{/*
+UTILITY HELPERS
 Helper to get image safely
 */}}
 {{- define "generic-chart.getImage" -}}

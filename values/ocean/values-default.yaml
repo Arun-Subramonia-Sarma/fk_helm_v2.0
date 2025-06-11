@@ -1,0 +1,284 @@
+# Default values for booking-service using generic workload chart
+# This is a YAML-formatted file.
+
+# Global settings
+global:
+  nameOverride: "booking-service"
+  fullnameOverride: "booking-service"
+
+# Business Labels - Applied to all resources
+businessLabels:
+  bu: "ocean"
+  project: "booking-service"
+  application: "booking-api"
+  env: "local"
+
+# Image configuration
+image:
+  repository: 108177350548.dkr.ecr.us-east-1.amazonaws.com/booking-service
+  pullPolicy: Always
+  tag: "release_v2.42.1-216b294"
+
+imagePullSecrets: []
+
+# Service Account
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::300982737966:role/booking-service-role"
+  name: "booking-service-sa"
+
+# Pod Security Context
+podSecurityContext: {}
+
+# Container Security Context
+securityContext: {}
+
+# Workload Configuration - Standard Deployment (not Argo Rollouts)
+workload:
+  type: deployment
+  deployment:
+    enabled: true
+    replicas: 1
+    strategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxUnavailable: 25%
+        maxSurge: 25%
+    revisionHistoryLimit: 3
+
+# Resource limits and requests
+resources:
+  limits:
+    cpu: 1000m
+    memory: 8092Mi
+  requests:
+    cpu: 1300m
+    memory: 8092Mi
+
+# Node scheduling
+nodeSelector:
+  product: ocean
+
+tolerations:
+  - key: "product"
+    operator: "Equal"
+    value: "ocean"
+    effect: "NoSchedule"
+
+affinity: {}
+
+# Pod annotations and labels
+podAnnotations: {}
+podLabels: {}
+
+# Environment variables in key=value format
+envVars:
+  # Basic service configuration
+  BOOKING_SERVICE_URL: "http://booking-api.fourkites.com"
+  COMPANY_SERVICE_URL: "http://company-api.fourkites.com"
+  DS_OCEAN_SERVICE_URL: "http://ds-ocean.fourkites.com"
+  FOURKITES_APP_ID: "booking-service"
+  FOURKITES_BASE_URL: "https://app.fourkites.com"
+  
+  # Environment identification
+  ENV: "local"
+  FK_ENVIRONMENT: "local"
+  FK_ENV: "local"
+  LOGGER_FILENAME: "booking-service-local.log"
+  
+  # OTEL PARAMETERS
+  OTEL_ENABLED: "true"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://opentelemetry-collector.telemetry:4317"
+  OTEL_RESOURCE_ATTRIBUTES: "service.name=booking-service,deployment.environment=local,service.instance.id=$(POD_NAME),k8s.pod.name=$(POD_NAME),k8s.namespace.name=$(NAMESPACE_NAME),k8s.node.name=$(NODE_NAME)"
+  OTEL_SERVICE_NAME: "booking-service"
+  TELEMETRY_ENABLED: "true"
+  OTEL_TRACES_SAMPLER: "traceidratio"
+  OTEL_TRACES_SAMPLER_ARG: "0.05"
+  OTEL_CONTRIB_VERSION: "0.102.0"
+  
+  # Database configuration
+  DB_MAXCONNECTIONS: "4"
+  DB_MAXIDLECONNECTIONS: "4"
+  DB_PORT: "5432"
+  DB_SSLMODE: "disable"
+  
+  # Logging configuration
+  LOGGER_DIRECTORY: "/var/log/"
+  LOGGER_LOGLEVEL: "INFO"
+  LOG_TO_STDOUT: "true"
+  
+  # AWS configuration
+  AWS_MULTIMODALQUEUESUFFIX: "-multimodal-worker"  
+  AWS_REGION: "us-east-1"
+  SERVER_PORT: ":5000"
+
+# Environment variables from Kubernetes metadata (when you need dynamic values)
+envValueFrom:
+  POD_NAME:
+    fieldRef:
+      fieldPath: metadata.name
+  NAMESPACE_NAME:
+    fieldRef:
+      fieldPath: metadata.namespace
+  NODE_NAME:
+    fieldRef:
+      fieldPath: spec.nodeName
+
+# Services Configuration
+services:
+  main:
+    enabled: true
+    type: ClusterIP
+    port: 80
+    targetPort: 5000
+    labels:
+      service-type: "main"
+
+# Single Service configuration (for backward compatibility)
+service:
+  enabled: true
+  type: ClusterIP
+  port: 80
+  targetPort: 5000
+
+# Advanced Ingress with Active/Preview Support
+ingress:
+  labels:
+    team: "ocean"
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+  annotations_active:
+    appgw.ingress.kubernetes.io/appgw-ssl-certificate: "wildcard-fourkites-ssl"
+  
+  data:
+    fk-ingress:
+      enabled: true
+      className: "nginx"
+      annotations:
+        appgw.ingress.kubernetes.io/appgw-ssl-certificate: "wildcard-fourkites-ssl"
+      hosts:
+        - host: booking-api.fourkites.com
+          host_preview: booking-api-preview.fourkites.com
+          paths:
+            - path: /
+              pathType: Prefix
+              servicePort: 80
+
+# External Secrets Configuration
+externalSecrets:
+  enabled: true
+  refreshInterval: "5m"
+  name: "booking-service"
+  kind: "ClusterSecretStore"
+  
+  es:
+    # Database secrets (will be loaded as environment variables)
+    db-secrets:
+      data:
+        DB_HOST:
+          key: "booking-service"
+          property: "DB_HOST"
+          decodingStrategy: "None"
+          conversionStrategy: "Default"
+        DB_DBNAME:
+          key: "booking-service"
+          property: "DB_DBNAME"
+          decodingStrategy: "None"
+          conversionStrategy: "Default"
+        BOOKING_SERVICE_MIGRATION_USER:
+          key: "booking-service"
+          property: "BOOKING_SERVICE_MIGRATION_USER"
+          decodingStrategy: "None"
+          conversionStrategy: "Default"
+        BOOKING_SERVICE_MIGRATION_PASSWORD:
+          key: "booking-service"
+          property: "BOOKING_SERVICE_MIGRATION_PASSWORD"
+          decodingStrategy: "None"
+          conversionStrategy: "Default"
+        DB_USER:
+          key: "booking-service"
+          property: "DB_USER"
+          decodingStrategy: "None"
+          conversionStrategy: "Default"
+        DB_PASSWORD:
+          key: "booking-service"
+          property: "DB_PASSWORD"
+          decodingStrategy: "None"
+          conversionStrategy: "Default"
+    
+    # Fourkites secrets (will be loaded as environment variables)
+    fourkites-secrets:
+      data:
+        ENVIRONMENTVARIABLES_FOURKITESAPPID:
+          key: "booking-service"
+          property: "ENVIRONMENTVARIABLES_FOURKITESAPPID"
+          decodingStrategy: "None"
+          conversionStrategy: "Default"
+        ENVIRONMENTVARIABLES_SHAREDAPPSECRET:
+          key: "booking-service"
+          property: "ENVIRONMENTVARIABLES_SHAREDAPPSECRET"
+          decodingStrategy: "None"
+          conversionStrategy: "Default"
+    
+    # GitHub token (will be loaded as environment variable)
+    github-token:
+      data:
+        GITHUB_TOKEN:
+          key: "booking-service"
+          property: "GITHUB_TOKEN"
+          decodingStrategy: "None"
+          conversionStrategy: "Default"
+
+# ConfigMaps (empty for now, but ready for use)
+configMaps: {}
+
+# Secrets (empty for now, but ready for use)
+secrets: {}
+
+# Horizontal Pod Autoscaler (disabled by default)
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
+
+# Pod Disruption Budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+# Health checks
+livenessProbe:
+  httpGet:
+    path: /internal/v1/health_check
+    port: 5000
+    scheme: HTTP
+  failureThreshold: 3
+  periodSeconds: 40
+  successThreshold: 1
+  timeoutSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /internal/v1/health_check
+    port: 5000
+    scheme: HTTP
+  failureThreshold: 3
+  periodSeconds: 40
+  successThreshold: 1
+  timeoutSeconds: 10
+
+# Additional settings for compatibility
+update_config: true
+automountServiceAccountToken: false
+
+# Custom notes for Helm
+customNotes: |
+  Welcome to Booking Service!
+
+  To access the booking API:
+  1. Internal: http://booking-service.default.svc.cluster.local
+  2. External: Use the Ingress URL (if configured)
+  
+  For support: contact@example.com
