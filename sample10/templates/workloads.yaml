@@ -1,0 +1,96 @@
+{{/* Deployment */}}
+{{- if eq .Values.workload.type "deployment" }}
+{{- if .Values.workload.deployment.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  {{- include "generic-chart.workloadMetadata" (dict "global" . "workloadType" "deployment" "name" (include "generic-chart.fullname" .)) | nindent 2 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.workload.deployment.replicas }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "generic-chart.selectorLabels" . | nindent 6 }}
+  {{- with .Values.workload.deployment.strategy }}
+  strategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  revisionHistoryLimit: {{ .Values.workload.deployment.revisionHistoryLimit }}
+  template:
+    {{- include "generic-chart.podTemplate" (dict "globalConfig" . "podConfig" (dict)) | nindent 4 }}
+{{- end }}
+{{- end }}
+
+{{/* StatefulSet */}}
+{{- if eq .Values.workload.type "statefulset" }}
+{{- if .Values.workload.statefulset.enabled }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  {{- include "generic-chart.workloadMetadata" (dict "global" . "workloadType" "statefulset" "name" (include "generic-chart.fullname" .)) | nindent 2 }}
+spec:
+  replicas: {{ .Values.workload.statefulset.replicas }}
+  selector:
+    matchLabels:
+      {{- include "generic-chart.selectorLabels" . | nindent 6 }}
+  serviceName: {{ .Values.workload.statefulset.serviceName | default (include "generic-chart.fullname" .) }}
+  podManagementPolicy: {{ .Values.workload.statefulset.podManagementPolicy }}
+  {{- with .Values.workload.statefulset.updateStrategy }}
+  updateStrategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  template:
+    {{- include "generic-chart.podTemplate" (dict "globalConfig" . "podConfig" (dict)) | nindent 4 }}
+  {{- with .Values.workload.statefulset.volumeClaimTemplates }}
+  volumeClaimTemplates:
+    {{- toYaml . | nindent 2 }}
+  {{- end }}
+{{- end }}
+{{- end }}
+
+{{/* DaemonSet */}}
+{{- if eq .Values.workload.type "daemonset" }}
+{{- if .Values.workload.daemonset.enabled }}
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  {{- include "generic-chart.workloadMetadata" (dict "global" . "workloadType" "daemonset" "name" (include "generic-chart.fullname" .)) | nindent 2 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "generic-chart.selectorLabels" . | nindent 6 }}
+  {{- with .Values.workload.daemonset.updateStrategy }}
+  updateStrategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  template:
+    {{- include "generic-chart.podTemplate" (dict "globalConfig" . "podConfig" (dict)) | nindent 4 }}
+{{- end }}
+{{- end }}
+
+{{/* Argo Rollout */}}
+{{- if eq .Values.workload.type "rollout" }}
+{{- if .Values.workload.rollout.enabled }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  {{- include "generic-chart.workloadMetadata" (dict "global" . "workloadType" "rollout" "name" (include "generic-chart.fullname" .)) | nindent 2 }}
+spec:
+  replicas: {{ .Values.workload.rollout.replicas }}
+  selector:
+    matchLabels:
+      {{- include "generic-chart.selectorLabels" . | nindent 6 }}
+  revisionHistoryLimit: {{ .Values.workload.rollout.revisionHistoryLimit }}
+  {{- with .Values.workload.rollout.strategy }}
+  strategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  template:
+    {{- include "generic-chart.podTemplate" (dict "globalConfig" . "podConfig" (dict)) | nindent 4 }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,63 @@
+{{- range $jobName, $jobConfig := .Values.jobs }}
+{{- if $jobConfig.enabled }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  {{- include "generic-chart.jobMetadata" (dict "global" $ "jobConfig" $jobConfig "jobName" $jobName "jobType" "Job") | nindent 2 }}
+spec:
+  {{- with $jobConfig.backoffLimit }}
+  backoffLimit: {{ . }}
+  {{- end }}
+  {{- with $jobConfig.completions }}
+  completions: {{ . }}
+  {{- end }}
+  {{- with $jobConfig.parallelism }}
+  parallelism: {{ . }}
+  {{- end }}
+  {{- with $jobConfig.activeDeadlineSeconds }}
+  activeDeadlineSeconds: {{ . }}
+  {{- end }}
+  {{- with $jobConfig.ttlSecondsAfterFinished }}
+  ttlSecondsAfterFinished: {{ . }}
+  {{- end }}
+  template:
+    {{- $jobPodConfig := dict 
+        "restartPolicy" ($jobConfig.restartPolicy | default "OnFailure")
+        "additionalLabels" (dict "jobname" $jobName)
+        "annotations" $jobConfig.podAnnotations
+        "labels" $jobConfig.podLabels
+        "nodeSelector" $jobConfig.nodeSelector
+        "affinity" $jobConfig.affinity
+        "tolerations" $jobConfig.tolerations
+        "imagePullSecrets" $jobConfig.imagePullSecrets
+        "podSecurityContext" $jobConfig.podSecurityContext
+    }}
+    {{- $jobContainerConfig := dict 
+        "name" $jobName
+        "repository" ($jobConfig.image.repository | default $.Values.image.repository)
+        "tag" ($jobConfig.image.tag | default $.Values.image.tag)
+        "pullPolicy" ($jobConfig.image.pullPolicy | default $.Values.image.pullPolicy)
+        "command" $jobConfig.command
+        "args" $jobConfig.args
+        "env" $jobConfig.env
+        "envVars" $jobConfig.envVars
+        "envValueFrom" $jobConfig.envValueFrom
+        "envFrom" $jobConfig.envFrom
+        "resources" ($jobConfig.resources | default $.Values.resources)
+        "volumeMounts" $jobConfig.volumeMounts
+        "volumes" $jobConfig.volumes
+        "sidecarContainers" $jobConfig.sidecarContainers
+        "securityContext" $jobConfig.securityContext
+        "initContainers" $jobConfig.initContainers
+        "podAnnotations" $jobConfig.podAnnotations
+        "podLabels" $jobConfig.podLabels
+    }}
+    {{- include "generic-chart.podTemplate" (dict 
+        "globalConfig" $ 
+        "podConfig" $jobPodConfig 
+        "containerConfig" $jobContainerConfig
+        "jobName" $jobName
+    ) | nindent 4 }}
+{{- end }}
+{{- end }}
