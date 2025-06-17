@@ -501,6 +501,117 @@ Usage: {{ include "generic-chart.mergedEnvVars" (dict "globalConfig" . "containe
 {{- end }}
 
 {{/*
+Common workload dict constructor - Creates standardized dict objects for workload pod templates
+Usage: {{ include "generic-chart.workloadDictConfig" (dict "global" . "workloadType" "deployment") }}
+*/}}
+{{- define "generic-chart.workloadDictConfig" -}}
+{{- $global := .global }}
+{{- $workloadType := .workloadType }}
+{{- $workloadConfig := index $global.Values.workload $workloadType }}
+
+{{/* Construct podConfig dict */}}
+{{- $podConfig := dict }}
+{{- if $workloadConfig.podAnnotations }}
+  {{- $_ := set $podConfig "annotations" $workloadConfig.podAnnotations }}
+{{- end }}
+{{- if $workloadConfig.podLabels }}
+  {{- $_ := set $podConfig "labels" $workloadConfig.podLabels }}
+{{- end }}
+{{- if $workloadConfig.nodeSelector }}
+  {{- $_ := set $podConfig "nodeSelector" $workloadConfig.nodeSelector }}
+{{- end }}
+{{- if $workloadConfig.affinity }}
+  {{- $_ := set $podConfig "affinity" $workloadConfig.affinity }}
+{{- end }}
+{{- if $workloadConfig.tolerations }}
+  {{- $_ := set $podConfig "tolerations" $workloadConfig.tolerations }}
+{{- end }}
+{{- if $workloadConfig.imagePullSecrets }}
+  {{- $_ := set $podConfig "imagePullSecrets" $workloadConfig.imagePullSecrets }}
+{{- end }}
+{{- if $workloadConfig.podSecurityContext }}
+  {{- $_ := set $podConfig "podSecurityContext" $workloadConfig.podSecurityContext }}
+{{- end }}
+
+{{/* Construct containerConfig dict */}}
+{{- $containerConfig := dict }}
+{{- $_ := set $containerConfig "name" (include "generic-chart.fullname" $global) }}
+{{- if $workloadConfig.image }}
+  {{- if $workloadConfig.image.repository }}
+    {{- $_ := set $containerConfig "repository" $workloadConfig.image.repository }}
+  {{- end }}
+  {{- if $workloadConfig.image.tag }}
+    {{- $_ := set $containerConfig "tag" $workloadConfig.image.tag }}
+  {{- end }}
+  {{- if $workloadConfig.image.pullPolicy }}
+    {{- $_ := set $containerConfig "pullPolicy" $workloadConfig.image.pullPolicy }}
+  {{- end }}
+{{- end }}
+{{- if $workloadConfig.command }}
+  {{- $_ := set $containerConfig "command" $workloadConfig.command }}
+{{- end }}
+{{- if $workloadConfig.args }}
+  {{- $_ := set $containerConfig "args" $workloadConfig.args }}
+{{- end }}
+
+{{/* Map global environment variables to container config - THIS IS THE FIX */}}
+{{- if $global.Values.env }}
+  {{- $_ := set $containerConfig "env" $global.Values.env }}
+{{- end }}
+{{- if $global.Values.envVars }}
+  {{- $_ := set $containerConfig "envVars" $global.Values.envVars }}
+{{- end }}
+{{- if $global.Values.envValueFrom }}
+  {{- $_ := set $containerConfig "envValueFrom" $global.Values.envValueFrom }}
+{{- end }}
+{{- if $global.Values.envFrom }}
+  {{- $_ := set $containerConfig "envFrom" $global.Values.envFrom }}
+{{- end }}
+
+{{/* Also check workload-specific environment variables */}}
+{{- if $workloadConfig.env }}
+  {{- $_ := set $containerConfig "env" $workloadConfig.env }}
+{{- end }}
+{{- if $workloadConfig.envVars }}
+  {{- $_ := set $containerConfig "envVars" $workloadConfig.envVars }}
+{{- end }}
+{{- if $workloadConfig.envValueFrom }}
+  {{- $_ := set $containerConfig "envValueFrom" $workloadConfig.envValueFrom }}
+{{- end }}
+{{- if $workloadConfig.envFrom }}
+  {{- $_ := set $containerConfig "envFrom" $workloadConfig.envFrom }}
+{{- end }}
+
+{{- if $workloadConfig.resources }}
+  {{- $_ := set $containerConfig "resources" $workloadConfig.resources }}
+{{- end }}
+{{- if $workloadConfig.volumeMounts }}
+  {{- $_ := set $containerConfig "volumeMounts" $workloadConfig.volumeMounts }}
+{{- end }}
+{{- if $workloadConfig.volumes }}
+  {{- $_ := set $containerConfig "volumes" $workloadConfig.volumes }}
+{{- end }}
+{{- if $workloadConfig.sidecarContainers }}
+  {{- $_ := set $containerConfig "sidecarContainers" $workloadConfig.sidecarContainers }}
+{{- end }}
+{{- if $workloadConfig.securityContext }}
+  {{- $_ := set $containerConfig "securityContext" $workloadConfig.securityContext }}
+{{- end }}
+{{- if $workloadConfig.initContainers }}
+  {{- $_ := set $containerConfig "initContainers" $workloadConfig.initContainers }}
+{{- end }}
+{{- if $workloadConfig.podAnnotations }}
+  {{- $_ := set $containerConfig "podAnnotations" $workloadConfig.podAnnotations }}
+{{- end }}
+{{- if $workloadConfig.podLabels }}
+  {{- $_ := set $containerConfig "podLabels" $workloadConfig.podLabels }}
+{{- end }}
+
+{{/* Return the constructed dicts as a combined object */}}
+{{- dict "global" $global "workloadType" $workloadType "podConfig" $podConfig "containerConfig" $containerConfig "fullName" (include "generic-chart.fullname" $global) | toYaml }}
+{{- end }}
+
+{{/*
 Universal Pod Template - Used by all workload types
 */}}
 {{- define "generic-chart.podTemplate" -}}
@@ -511,6 +622,7 @@ Universal Pod Template - Used by all workload types
 {{- $jobName := .jobName | default "" }}
 {{- $globalName := .globalName | default "" }}
 metadata:
+  name: {{ $globalName | default (include "generic-chart.fullname" $globalConfig) }}
   {{- $podAnnotations := list }}
   {{- if $globalConfig.Values.podAnnotations }}
     {{- $podAnnotations = append $podAnnotations $globalConfig.Values.podAnnotations }}
@@ -613,7 +725,7 @@ spec:
       {{- end }}
       {{- if and (or $globalConfig.Values.services (and $globalConfig.Values.service $globalConfig.Values.service.enabled)) (not $podConfig.restartPolicy) }}
       ports:
-        - name: {{$globalName}}-cp
+        - name: {{ $globalName | default "http" }}-cp
           containerPort: {{ $globalConfig.Values.service.targetPort | default 8080 }}
           protocol: TCP
       {{- end }}

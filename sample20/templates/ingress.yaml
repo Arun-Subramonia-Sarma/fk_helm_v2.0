@@ -1,0 +1,196 @@
+# ingress.yaml - Advanced ingress with active/preview support
+{{- range $ingressName, $ingressConfig := .Values.ingress.data }}
+{{- if $ingressConfig.enabled }}
+
+{{/* Generate Active/Regular Ingress */}}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "generic-chart.fullname" $ }}-{{ $ingressName }}
+  labels:
+    {{- include "generic-chart.labels" $ | nindent 4 }}
+    ingress-name: {{ $ingressName | quote }}
+    ingress-type: "active"
+    {{- $labels := list }}
+    {{/* Global ingress labels */}}
+    {{- if $.Values.ingress.labels }}
+      {{- $labels = append $labels $.Values.ingress.labels }}
+    {{- end }}
+    {{/* Global active labels */}}
+    {{- if $.Values.ingress.labels_active }}
+      {{- $labels = append $labels $.Values.ingress.labels_active }}
+    {{- end }}
+    {{/* Ingress-specific labels */}}
+    {{- if $ingressConfig.labels }}
+      {{- $labels = append $labels $ingressConfig.labels }}
+    {{- end }}
+    {{/* Ingress-specific active labels */}}
+    {{- if $ingressConfig.labels_active }}
+      {{- $labels = append $labels $ingressConfig.labels_active }}
+    {{- end }}
+    {{- if $labels }}
+    {{- include "generic-chart.mergeLabels" $labels | nindent 4 }}
+    {{- end }}
+  {{- $annotations := list }}
+  {{/* Global ingress annotations */}}
+  {{- if $.Values.ingress.annotations }}
+    {{- $annotations = append $annotations $.Values.ingress.annotations }}
+  {{- end }}
+  {{/* Global active annotations */}}
+  {{- if $.Values.ingress.annotations_active }}
+    {{- $annotations = append $annotations $.Values.ingress.annotations_active }}
+  {{- end }}
+  {{/* Ingress-specific annotations */}}
+  {{- if $ingressConfig.annotations }}
+    {{- $annotations = append $annotations $ingressConfig.annotations }}
+  {{- end }}
+  {{/* Ingress-specific active annotations */}}
+  {{- if $ingressConfig.annotations_active }}
+    {{- $annotations = append $annotations $ingressConfig.annotations_active }}
+  {{- end }}
+  {{- if $annotations }}
+  annotations:
+    {{- include "generic-chart.mergeIngressAnnotations" (dict "annotations" $annotations "ingressClassName" $ingressConfig.className) | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if $ingressConfig.className }}
+  ingressClassName: {{ $ingressConfig.className }}
+  {{- end }}
+  {{- if $ingressConfig.tls }}
+  tls:
+    {{- range $ingressConfig.tls }}
+    - hosts:
+        {{- range .hosts }}
+        - {{ . | quote }}
+        {{- end }}
+      secretName: {{ .secretName }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- range $ingressConfig.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType | default "Prefix" }}
+            backend:
+              service:
+                name: {{ include "generic-chart.fullname" $ }}
+                port:
+                  {{- if .servicePort }}
+                  number: {{ .servicePort }}
+                  {{- else }}
+                  number: 80
+                  {{- end }}
+          {{- end }}
+    {{- end }}
+
+{{/* Generate Preview Ingress if host_preview is specified */}}
+{{- $hasPreview := false }}
+{{- range $ingressConfig.hosts }}
+  {{- if .host_preview }}
+    {{- $hasPreview = true }}
+  {{- end }}
+{{- end }}
+
+{{- if $hasPreview }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "generic-chart.fullname" $ }}-{{ $ingressName }}-preview
+  labels:
+    {{- include "generic-chart.labels" $ | nindent 4 }}
+    ingress-name: {{ $ingressName | quote }}
+    ingress-type: "preview"
+    {{- $previewLabels := list }}
+    {{/* Global ingress labels */}}
+    {{- if $.Values.ingress.labels }}
+      {{- $previewLabels = append $previewLabels $.Values.ingress.labels }}
+    {{- end }}
+    {{/* Global preview labels */}}
+    {{- if $.Values.ingress.labels_preview }}
+      {{- $previewLabels = append $previewLabels $.Values.ingress.labels_preview }}
+    {{- end }}
+    {{/* Ingress-specific labels */}}
+    {{- if $ingressConfig.labels }}
+      {{- $previewLabels = append $previewLabels $ingressConfig.labels }}
+    {{- end }}
+    {{/* Ingress-specific preview labels */}}
+    {{- if $ingressConfig.labels_preview }}
+      {{- $previewLabels = append $previewLabels $ingressConfig.labels_preview }}
+    {{- end }}
+    {{- if $previewLabels }}
+    {{- include "generic-chart.mergeLabels" $previewLabels | nindent 4 }}
+    {{- end }}
+  {{- $previewAnnotations := list }}
+  {{/* Global ingress annotations */}}
+  {{- if $.Values.ingress.annotations }}
+    {{- $previewAnnotations = append $previewAnnotations $.Values.ingress.annotations }}
+  {{- end }}
+  {{/* Global preview annotations */}}
+  {{- if $.Values.ingress.annotations_preview }}
+    {{- $previewAnnotations = append $previewAnnotations $.Values.ingress.annotations_preview }}
+  {{- end }}
+  {{/* Ingress-specific annotations */}}
+  {{- if $ingressConfig.annotations }}
+    {{- $previewAnnotations = append $previewAnnotations $ingressConfig.annotations }}
+  {{- end }}
+  {{/* Ingress-specific preview annotations */}}
+  {{- if $ingressConfig.annotations_preview }}
+    {{- $previewAnnotations = append $previewAnnotations $ingressConfig.annotations_preview }}
+  {{- end }}
+  {{- if $previewAnnotations }}
+  annotations:
+    {{- include "generic-chart.mergeIngressAnnotations" (dict "annotations" $previewAnnotations "ingressClassName" $ingressConfig.className) | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if $ingressConfig.className }}
+  ingressClassName: {{ $ingressConfig.className }}
+  {{- end }}
+  {{- if $ingressConfig.tls_preview }}
+  tls:
+    {{- range $ingressConfig.tls_preview }}
+    - hosts:
+        {{- range .hosts }}
+        - {{ . | quote }}
+        {{- end }}
+      secretName: {{ .secretName }}
+    {{- end }}
+  {{- else if $ingressConfig.tls }}
+  tls:
+    {{- range $ingressConfig.tls }}
+    - hosts:
+        {{- range .hosts }}
+        - {{ . | quote }}
+        {{- end }}
+      secretName: {{ .secretName }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- range $ingressConfig.hosts }}
+    {{- if .host_preview }}
+    - host: {{ .host_preview | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType | default "Prefix" }}
+            backend:
+              service:
+                name: {{ include "generic-chart.fullname" $ }}
+                port:
+                  {{- if .servicePort }}
+                  number: {{ .servicePort }}
+                  {{- else }}
+                  number: 80
+                  {{- end }}
+          {{- end }}
+    {{- end }}
+    {{- end }}
+{{- end }}
+
+{{- end }}
+{{- end }}

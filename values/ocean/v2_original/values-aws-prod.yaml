@@ -1,0 +1,70 @@
+# Default values for booking-service
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 6
+environment: production
+image:
+  registry: 108177350548.dkr.ecr.us-east-1.amazonaws.com
+  tag: v0.0.1-pre337-b043581
+#######
+# Our deployment utilizes Argo Rollouts, which provides advanced deployment capabilities,
+# including canary and blue-green strategies.
+deployment:
+  # useArgoRollouts: Specifies whether to use Argo Rollouts for deployment.
+  #   true: Deployment will proceed using Argo Rollouts.
+  #   false: Deployment will proceed using Kubernetes native deployment.
+  useArgoRollouts: true
+  # When useArgoRollouts is set to true, the following settings apply:
+  #   previewSuffix: Used exclusively with the blue-green deployment strategy.
+  #     An additional service and ingress are created, with the previewSuffix appended to their names. (Only for blue-green deployments)
+  # Example:
+  #   For a service named api-server, the preview service will be named api-server-preview.
+  #   For an ingress with the hostname dyf-new-dev.ng-np.fourkites.com,
+  #   the preview ingress hostname will be dyf-new-dev.ng-np-preview.fourkites.com.
+  previewSuffice: "preview"
+  strategy: |
+    blueGreen:
+      autoPromotionEnabled: false
+# Pod Disruption Budget
+pdb:
+  enabled: true
+ingress:
+  data:
+    fk-ingress:
+      enabled: true
+      annotations:
+        appgw.ingress.kubernetes.io/appgw-ssl-certificate: wildcard-fourkites-ssl
+      className: "nginx"
+      hosts:
+        - host: booking-api.fourkites.com
+          host_preview: booking-api-preview.fourkites.com
+          paths:
+            - path: /
+              pathType: Prefix
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1536Mi
+  requests:
+    cpu: 500m
+    memory: 1536Mi
+######################
+# To add more environment variables
+######################
+extraEnv:
+  AWS_ACCOUNTID: "723008196684"
+  ENVIRONMENTVARIABLES_USERSERVICEURL: "https://user-api.fourkites.com"
+  FEATURE_UPDATEBOOKING: ["ford-india-ocean-pilot", "test-ocean-shipper"]
+  FEATURE_LIMITSTATUS: "Subscription Created"
+externalSecrets:
+  name: "prod-cluster-secretstore"
+  key: "prod/app/booking-service"
+########################
+# Environment variables
+######################################
+configmaps: {}
+serviceAccount:
+  create: true
+  annotations: {eks.amazonaws.com/role-arn: "arn:aws:iam::723008196684:role/booking-service-role"}
+  name: "booking-service-sa"

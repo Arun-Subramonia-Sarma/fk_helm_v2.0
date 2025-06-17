@@ -1,0 +1,20 @@
+apiVersion: v2
+name: fk-helm
+description: Standardised helm chart for FourKites Deployments. It supports the following;
+# Workloads
+#   Deployment
+#   StatefulSet
+#   DemonSet
+#   Argo Rollout
+#   Multiple Job
+#   Multiple Cronjobs
+# Multiple Services
+# Multiple Ingress Objects
+# Horizondal Pod Scalling
+# Service Accounts
+# Secrets
+# Secrets using key vault (Using external Secrets)
+# Pod Disruption Budget
+type: application
+version: 2.0.0
+appVersion: "1.0.0"

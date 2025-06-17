@@ -1,0 +1,99 @@
+{{/* Create common dictConfig once for all workload types */}}
+{{- $dictConfig := include "generic-chart.workloadDictConfig" (dict "global" . "workloadType" .Values.workload.type) | fromYaml }}
+
+{{/* Deployment */}}
+{{- if eq .Values.workload.type "deployment" }}
+{{- if .Values.workload.deployment.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  {{- include "generic-chart.workloadMetadata" (dict "global" . "workloadType" "deployment" "name" $dictConfig.fullName) | nindent 2 }}
+spec:
+  {{- if not $dictConfig.global.Values.autoscaling.enabled }}
+  replicas: {{ $dictConfig.global.Values.workload.deployment.replicas }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "generic-chart.selectorLabels" $dictConfig.global | nindent 6 }}
+  {{- with $dictConfig.global.Values.workload.deployment.strategy }}
+  strategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  revisionHistoryLimit: {{ $dictConfig.global.Values.workload.deployment.revisionHistoryLimit }}
+  template:
+    {{- include "generic-chart.podTemplate" (dict "globalName" $dictConfig.fullName "globalConfig" $dictConfig.global "podConfig" $dictConfig.podConfig "containerConfig" $dictConfig.containerConfig) | nindent 4 }}
+{{- end }}
+{{- end }}
+
+{{/* StatefulSet */}}
+{{- if eq .Values.workload.type "statefulset" }}
+{{- if .Values.workload.statefulset.enabled }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  {{- include "generic-chart.workloadMetadata" (dict "global" . "workloadType" "statefulset" "name" $dictConfig.fullName) | nindent 2 }}
+spec:
+  replicas: {{ $dictConfig.global.Values.workload.statefulset.replicas }}
+  selector:
+    matchLabels:
+      {{- include "generic-chart.selectorLabels" $dictConfig.global | nindent 6 }}
+  serviceName: {{ $dictConfig.global.Values.workload.statefulset.serviceName | default $dictConfig.fullName }}
+  podManagementPolicy: {{ $dictConfig.global.Values.workload.statefulset.podManagementPolicy }}
+  {{- with $dictConfig.global.Values.workload.statefulset.updateStrategy }}
+  updateStrategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  template:
+    {{- include "generic-chart.podTemplate" (dict "globalName" $dictConfig.fullName "globalConfig" $dictConfig.global "podConfig" $dictConfig.podConfig "containerConfig" $dictConfig.containerConfig) | nindent 4 }}
+  {{- with $dictConfig.global.Values.workload.statefulset.volumeClaimTemplates }}
+  volumeClaimTemplates:
+    {{- toYaml . | nindent 2 }}
+  {{- end }}
+{{- end }}
+{{- end }}
+
+{{/* DaemonSet */}}
+{{- if eq .Values.workload.type "daemonset" }}
+{{- if .Values.workload.daemonset.enabled }}
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  {{- include "generic-chart.workloadMetadata" (dict "global" . "workloadType" "daemonset" "name" $dictConfig.fullName) | nindent 2 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "generic-chart.selectorLabels" $dictConfig.global | nindent 6 }}
+  {{- with $dictConfig.global.Values.workload.daemonset.updateStrategy }}
+  updateStrategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  template:
+    {{- include "generic-chart.podTemplate" (dict "globalName" $dictConfig.fullName "globalConfig" $dictConfig.global "podConfig" $dictConfig.podConfig "containerConfig" $dictConfig.containerConfig) | nindent 4 }}
+{{- end }}
+{{- end }}
+
+{{/* Argo Rollout */}}
+{{- if eq .Values.workload.type "rollout" }}
+{{- if .Values.workload.rollout.enabled }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  {{- include "generic-chart.workloadMetadata" (dict "global" . "workloadType" "rollout" "name" $dictConfig.fullName) | nindent 2 }}
+spec:
+  replicas: {{ $dictConfig.global.Values.workload.rollout.replicas }}
+  selector:
+    matchLabels:
+      {{- include "generic-chart.selectorLabels" $dictConfig.global | nindent 6 }}
+  revisionHistoryLimit: {{ $dictConfig.global.Values.workload.rollout.revisionHistoryLimit }}
+  {{- with $dictConfig.global.Values.workload.rollout.strategy }}
+  strategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  template:
+    {{- include "generic-chart.podTemplate" (dict "globalName" $dictConfig.fullName "globalConfig" $dictConfig.global "podConfig" $dictConfig.podConfig "containerConfig" $dictConfig.containerConfig) | nindent 4 }}
+{{- end }}
+{{- end }}

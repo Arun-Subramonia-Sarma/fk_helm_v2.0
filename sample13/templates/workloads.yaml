@@ -1,6 +1,7 @@
 {{/* Deployment */}}
 {{- if eq .Values.workload.type "deployment" }}
 {{- if .Values.workload.deployment.enabled }}
+{{- $dictConfig := include "generic-chart.workloadDictConfig" (dict "global" . "workloadType" "deployment") | fromYaml }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -19,13 +20,14 @@ spec:
   {{- end }}
   revisionHistoryLimit: {{ .Values.workload.deployment.revisionHistoryLimit }}
   template:
-    {{- include "generic-chart.podTemplate" (dict "globalName" (include "generic-chart.fullname" .) "globalConfig" . "podConfig" (dict) "containerConfig" (dict "name" (include "generic-chart.fullname" .))) | nindent 4 }}
+    {{- include "generic-chart.podTemplate" (dict "globalName" (include "generic-chart.fullname" .) "globalConfig" . "podConfig" $dictConfig.podConfig "containerConfig" $dictConfig.containerConfig) | nindent 4 }}
 {{- end }}
 {{- end }}
 
 {{/* StatefulSet */}}
 {{- if eq .Values.workload.type "statefulset" }}
 {{- if .Values.workload.statefulset.enabled }}
+{{- $dictConfig := include "generic-chart.workloadDictConfig" (dict "global" . "workloadType" "statefulset") | fromYaml }}
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -43,7 +45,7 @@ spec:
     {{- toYaml . | nindent 4 }}
   {{- end }}
   template:
-    {{- include "generic-chart.podTemplate" (dict "globalName" (include "generic-chart.fullname" .) "globalConfig" . "podConfig" (dict)) | nindent 4 }}
+    {{- include "generic-chart.podTemplate" (dict "globalName" (include "generic-chart.fullname" .) "globalConfig" . "podConfig" $dictConfig.podConfig "containerConfig" $dictConfig.containerConfig) | nindent 4 }}
   {{- with .Values.workload.statefulset.volumeClaimTemplates }}
   volumeClaimTemplates:
     {{- toYaml . | nindent 2 }}
@@ -54,6 +56,7 @@ spec:
 {{/* DaemonSet */}}
 {{- if eq .Values.workload.type "daemonset" }}
 {{- if .Values.workload.daemonset.enabled }}
+{{- $dictConfig := include "generic-chart.workloadDictConfig" (dict "global" . "workloadType" "daemonset") | fromYaml }}
 ---
 apiVersion: apps/v1
 kind: DaemonSet
@@ -68,13 +71,14 @@ spec:
     {{- toYaml . | nindent 4 }}
   {{- end }}
   template:
-    {{- include "generic-chart.podTemplate" (dict "globalName" (include "generic-chart.fullname" .) "globalConfig" . "podConfig" (dict)) | nindent 4 }}
+    {{- include "generic-chart.podTemplate" (dict "globalName" (include "generic-chart.fullname" .) "globalConfig" . "podConfig" $dictConfig.podConfig "containerConfig" $dictConfig.containerConfig) | nindent 4 }}
 {{- end }}
 {{- end }}
 
 {{/* Argo Rollout */}}
 {{- if eq .Values.workload.type "rollout" }}
 {{- if .Values.workload.rollout.enabled }}
+{{- $dictConfig := include "generic-chart.workloadDictConfig" (dict "global" . "workloadType" "rollout") | fromYaml }}
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
@@ -91,6 +95,6 @@ spec:
     {{- toYaml . | nindent 4 }}
   {{- end }}
   template:
-    {{- include "generic-chart.podTemplate" (dict "globalName" (include "generic-chart.fullname" .) "globalConfig" . "podConfig" (dict) "containerConfig" (dict "name" (include "generic-chart.fullname" .))) | nindent 4 }}
+    {{- include "generic-chart.podTemplate" (dict "globalName" (include "generic-chart.fullname" .) "globalConfig" . "podConfig" $dictConfig.podConfig "containerConfig" $dictConfig.containerConfig) | nindent 4 }}
 {{- end }}
 {{- end }}

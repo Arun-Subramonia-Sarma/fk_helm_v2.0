@@ -1,171 +1,42 @@
-# Default values for booking-service.
+# Converted values-default.yaml for booking-service
 # This is a YAML-formatted file.
-# Declare variables to be passed into your templates.
 
-replicaCount: 1
-environment: local
-revisionHistoryLimit: 3
-automountServiceAccountToken: false
+# Global settings
+global:
+  nameOverride: "booking-service"
+  fullnameOverride: "booking-service"
 
+# Business Labels - Applied to all resources
+businessLabels:
+  bu: "logistics"
+  project: "booking-service"
+  application: "booking-api"
+  env: "local"
+  team: "ocean-team"
+  cloud: ""
 
-customNotes: |
-    Welcome to Booking Service!
-  
-    To access the booking API:
-    1. Internal: http://booking-service.default.svc.cluster.local
-    2. External: Use the Ingress URL (if configured)
-    
-    For support: contact@example.com
-
+# Image configuration
 image:
-  registry: 108177350548.dkr.ecr.us-east-1.amazonaws.com
-  repository: booking-service
+  repository: "108177350548.dkr.ecr.us-east-1.amazonaws.com/booking-service"
   pullPolicy: Always
-  # Overrides the image tag whose default is the chart appVersion.
-  tag: release_v2.42.1-216b294
+  tag: "release_v2.42.1-216b294"
 
 imagePullSecrets: []
-nameOverride: booking-service
-fullnameOverride: booking-service
-update_config: true
 
-################
-# Service Account under which the pod runs.
-# It is always to better to run the pod under its own service account so that the pod identity can be applied
-# create: indicates if the service account needed to be created
-# annotations: annotations to add for the service account. The annotation could be used for pod identity
-# name: name of the service account. If empty will use fullname. If create is false and name is emoty then will use the default service account
+# Service Account
 serviceAccount:
-  # Specifies whether a service account should be created
   create: true
-  # Annotations to add to the service account
-  annotations: {
+  annotations:
     eks.amazonaws.com/role-arn: "arn:aws:iam::300982737966:role/booking-service-role"
-  }
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
-  # If the value is present and create is false, then the service account with the name specified is expected to be present
   name: "booking-service-sa"
 
-
-#######
-# Our deployment utilizes Argo Rollouts, which provides advanced deployment capabilities,
-# including canary and blue-green strategies.
-deployment:
-  # useArgoRollouts: Specifies whether to use Argo Rollouts for deployment.
-  #   true: Deployment will proceed using Argo Rollouts.
-  #   false: Deployment will proceed using Kubernetes native deployment.
-  useArgoRollouts: false
-  # When useArgoRollouts is set to true, the following settings apply:
-  #   previewSuffix: Used exclusively with the blue-green deployment strategy.
-  #     An additional service and ingress are created, with the previewSuffix appended to their names. (Only for blue-green deployments)
-  # Example:
-  #   For a service named api-server, the preview service will be named api-server-preview.
-  #   For an ingress with the hostname dyf-new-dev.ng-np.fourkites.com,
-  #   the preview ingress hostname will be dyf-new-dev.ng-np-preview.fourkites.com.
-  previewSuffice: "preview"
-  strategy: |
-    blueGreen:
-      autoPromotionEnabled: false
-
-# Pod Disruption Budget
-pdb:
-  enabled: true
-  minAvailable: "2"
-
-#Priority Class Name
-#priorityClassName: "critical-priority"
-
-podAnnotations: {}
-
+# Pod Security Context
 podSecurityContext: {}
-# fsGroup: 2000
 
+# Container Security Context
 securityContext: {}
-  # capabilities:
-  #   drop:
-  #   - ALL
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
-# runAsUser: 1000
 
-livenessProbe: |
-  failureThreshold: 3
-  httpGet:
-    path: /internal/v1/health_check
-    port: {{ include "application.portname" . }}-cp
-    scheme: HTTP
-  periodSeconds: 40
-  successThreshold: 1
-  timeoutSeconds: 10
-readinessProbe: |
-  failureThreshold: 3
-  httpGet:
-    path: /internal/v1/health_check
-    port: {{ include "application.portname" . }}-cp
-    scheme: HTTP
-  periodSeconds: 40
-  successThreshold: 1
-  timeoutSeconds: 10
-
-#########################
-# Service level configuration
-# service.port will be used in the service
-# container.port will be used in the pod to configure the port and will be used in target port in the service
-service:
-  type: ClusterIP
-  port: 80
-
-container:
-  port: 5000
-
-ingress:
-  # labels:
-  #   testlabel-1: value1
-  # labels_active:
-  #   testlabel-active-1: value1
-  # labels_preview:
-  #   testlabel-preview-1: value1
-  # annotations:
-  #   testannotation-1: value1
-  # annotations_active:
-  #   testannotation-active-1: value1
-  # annotations_preview:
-  #   testannotation-preview-1: value1
-  data:
-    fk-ingress:
-      enabled: true
-      # labels:
-      #   test-fk-ingress-label: value1
-      # labels-preview:
-      #   test-fk-ingress-label: value1
-      # labels-active:
-      #   test-fk-ingress-label: value1
-      annotations:
-        appgw.ingress.kubernetes.io/appgw-ssl-certificate: wildcard-fourkites-ssl
-      #      annotations_active:
-      #        appgw.ingress.kubernetes.io/appgw-ssl-certificate: wildcard-fourkites-ssl
-      #      annotations_preview:
-      #        appgw.ingress.kubernetes.io/appgw-ssl-certificate: ng-fourkites-com-wildcard-cert
-      className: "nginx"
-      hosts:
-        - host: booking-api.fourkites.com
-          host_preview: booking-api-preview.fourkites.com
-          paths:
-            - path: /
-              pathType: Prefix
-
-istio:
-  enabled: false
-  hosts: |
-    - ""
-  gateways: |
-    - "istio-system/default-gateway"
-  http:
-    - match:
-        - uri:
-            prefix: /api
-
+# Resource limits and requests
 resources:
   limits:
     cpu: 1000m
@@ -174,114 +45,41 @@ resources:
     cpu: 1300m
     memory: 8092M
 
-###################
-# Config maps
-###################
-# configmaps:
-#   - name_suffix: test
-#     data: |
-#       FIRST: test
-#       SECOND: anothertest
+# Node selector
+nodeSelector:
+  product: ocean
 
-#####################
-# External secrets
-######################
-# externalsecrets:
-#   - name_suffix: test-secret
-#     refreshInterval: 1h
-#     target_name_suffix: test-secret
-#     data: |
-#       - secretKey: MY_PROPERTY1
-#         remote_ref:
-#           key: MY_PROPERTY1
-#       - secretKey: MY_PROPERTY2
-#         remote_ref:
-#           key: MY_PROPERTY1
-#           conversionStrategy: None
-#           decodingStrategy: None
+# Tolerations
+tolerations:
+  - key: "product"
+    operator: "Equal"
+    value: "ocean"
+    effect: "NoSchedule"
 
-######################
-# To create network policies
-######################
-# networkPolicy:
-#   ingress:
-#     - from:
-#         - ipBlock:
-#             cidr: 172.17.0.0/16
-#             except:
-#               - 172.17.1.0/24
-#         - namespaceSelector:
-#             matchLabels:
-#               project: myproject
-#         - podSelector:
-#             matchLabels:
-#               role: frontend
-#       ports:
-#         - protocol: TCP
-#           port: 6379
+# Affinity
+affinity: {}
 
-######################
-# Sample to create PVC
-######################
-# pvcs:
-#   - name: test1
-#     storageClassName: high-speed
-#     volumeName: my-test-volume
-#     dataSourceRef: |
-#       apiGroup: snapshot.storage.k8s.io
-#       kind: VolumeSnapshot
-#       name: new-snapshot-demo
-#       namespace: default
-#     volumeMode: FileSystem
-#   - name: test2
-#     storageClassName: high-volume
+# Pod annotations and labels
+podAnnotations: {}
+podLabels: {}
 
-#     accessModes:
-#       - ReadWriteOnce
-#       - ReadOnly
-#     resources: |
-#       requests:
-#         storage: 8Gi
-#     selector: |
-#       matchLabels:
-#         release: "stable"
-#       matchExpressions:
-#         - {key: environment, operator: In, values: [dev]}
-
-######################
-# If the container requires additional volume then uncomment the extraVolumeMounts and extraVolumes section and add any number of volumes
-######################
-# extraVolumeMounts: |
-#   - name: myVolme
-#     mountPath: /opt/test
-
-######################
-# extra volumes
-######################
-# extraVolumes: |
-#   - name: myVolme
-
-######################
-# To add more environment variables
-######################
-
-extraEnv:
+# Environment variables in key=value format
+envVars:
   BOOKING_SERVICE_URL: "http://booking-api.fourkites.com"
   COMPANY_SERVICE_URL: "http://company-api.fourkites.com"
   DS_OCEAN_SERVICE_URL: "http://ds-ocean.fourkites.com"
   FOURKITES_APP_ID: "booking-service"
   FOURKITES_BASE_URL: "https://app.fourkites.com"
-  # OTEL PARAMETERS
   OTEL_ENABLED: "true"
-  OTEL_EXPORTER_OTLP_ENDPOINT: http://opentelemetry-collector.telemetry:4317
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://opentelemetry-collector.telemetry:4317"
   OTEL_RESOURCE_ATTRIBUTES: "service.name=booking-service,deployment.environment=$(FK_ENVIRONMENT),service.instance.id=$(POD_NAME),k8s.pod.name=$(POD_NAME),k8s.namespace.name=$(NAMESPACE_NAME),k8s.node.name=$(NODE_NAME)"
   OTEL_SERVICE_NAME: "booking-service"
   TELEMETRY_ENABLED: "true"
-  OTEL_TRACES_SAMPLER: traceidratio
-  OTEL_TRACES_SAMPLER_ARG: 0.05
-  OTEL_CONTRIB_VERSION: 0.102.0
-  DB_MAXCONNECTIONS: 4
-  DB_MAXIDLECONNECTIONS: 4
+  OTEL_TRACES_SAMPLER: "traceidratio"
+  OTEL_TRACES_SAMPLER_ARG: "0.05"
+  OTEL_CONTRIB_VERSION: "0.102.0"
+  DB_MAXCONNECTIONS: "4"
+  DB_MAXIDLECONNECTIONS: "4"
   DB_PORT: "5432"
   DB_SSLMODE: "disable"
   LOGGER_DIRECTORY: "/var/log/"
@@ -291,147 +89,226 @@ extraEnv:
   AWS_REGION: "us-east-1"
   SERVER_PORT: ":5000"
 
-env: |
+# Environment variables from valueFrom (template format)
+env:
   - name: ENV
-    value: {{ .Values.environment | quote }}
+    value: "local"
   - name: FK_ENVIRONMENT
-    value: {{ .Values.environment | quote }}
+    value: "local"
   - name: FK_ENV
-    value: {{ .Values.environment | quote }}
+    value: "local"
   - name: LOGGER_FILENAME
-    value: "booking-service-{{ .Values.environment }}.log"
+    value: "booking-service-local.log"
+
+# Environment variables from ConfigMap/Secret
+envFrom:
+  - secretRef:
+      name: booking-service-db-secrets
+  - secretRef:
+      name: booking-service-fourkites-secrets
+  - secretRef:
+      name: booking-service-github-token
+
+# Volume mounts (none specified in original)
+volumeMounts: []
+
+# Volumes (none specified in original)
+volumes: []
+
+# Init containers (none specified in original)
+initContainers: []
+
+# Sidecar containers (none specified in original)
+sidecarContainers: []
+
+# Workload Configuration
+workload:
+  type: deployment
   
+  # Deployment specific settings
+  deployment:
+    enabled: true
+    replicas: 1
+    strategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxUnavailable: 25%
+        maxSurge: 25%
+    revisionHistoryLimit: 3
+  
+  # StatefulSet specific settings
+  statefulset:
+    enabled: false
+  
+  # DaemonSet specific settings
+  daemonset:
+    enabled: false
+  
+  # Argo Rollouts specific settings
+  rollout:
+    enabled: false
 
-######################
-# To add more environment from config map or secrets other than the one already provided in the chart
-######################
-# extraEnvFrom: |
-#   - configMapRef:
-#       name: {{ include "application.fullname" . }}-db-config
+# Jobs Configuration (none in original)
+jobs: {}
 
-# envFrom: |
-#   - secretRef:
-#       name: {{ include "application.fullname" . }}-db-secrets
+# CronJobs Configuration (none in original)
+cronjobs: {}
 
+# Multiple Services Configuration (none specified)
+services: {}
 
-######################
-# To add init containers (init containers)
-######################
-# extraInitContainers: |
-#   - name: my-init=0
-#     image: test-image
+# Single Service configuration
+service:
+  enabled: true
+  type: ClusterIP
+  port: 80
+  targetPort: 5000
+  annotations: {}
 
-######################
-# To add side car containers (side car containers)
-######################
-# extraContainers: |
-#   - name: my-side-car-container1
-#     image: test-image:43434
-#   - name: my-side-car-container2
-#     image: test-image:34
-#     volumeMounts:
-#       - name: myVolme
-#         mountPath: /opt/test
+# Multiple ConfigMaps
+configMaps: {}
 
+# Multiple Secrets (none in original, handled by external secrets)
+secrets: {}
+
+# External Secrets Configuration
+externalSecrets:
+  enabled: true
+  refreshInterval: "5m"
+  name: "booking-service"
+  kind: "ClusterSecretStore"
+  cloud: "aws"
+  
+  labels: {}
+  annotations: {}
+  
+  es:
+    db-secrets:
+      data:
+        DB_HOST:
+          key: "booking-service"
+          property: "DB_HOST"
+          decodingStrategy: "None"
+          conversionStrategy: "Default"
+        DB_DBNAME:
+          key: "booking-service"
+          property: "DB_DBNAME"
+          decodingStrategy: "None"
+          conversionStrategy: "Default"
+        BOOKING_SERVICE_MIGRATION_USER:
+          key: "booking-service"
+          property: "BOOKING_SERVICE_MIGRATION_USER"
+          decodingStrategy: "None"
+          conversionStrategy: "Default"
+        BOOKING_SERVICE_MIGRATION_PASSWORD:
+          key: "booking-service"
+          property: "BOOKING_SERVICE_MIGRATION_PASSWORD"
+          decodingStrategy: "None"
+          conversionStrategy: "Default"
+        DB_USER:
+          key: "booking-service"
+          property: "DB_USER"
+          decodingStrategy: "None"
+          conversionStrategy: "Default"
+        DB_PASSWORD:
+          key: "booking-service"
+          property: "DB_PASSWORD"
+          decodingStrategy: "None"
+          conversionStrategy: "Default"
+    
+    fourkites-secrets:
+      data:
+        ENVIRONMENTVARIABLES_FOURKITESAPPID:
+          key: "booking-service"
+          property: "ENVIRONMENTVARIABLES_FOURKITESAPPID"
+          decodingStrategy: "None"
+          conversionStrategy: "Default"
+        ENVIRONMENTVARIABLES_SHAREDAPPSECRET:
+          key: "booking-service"
+          property: "ENVIRONMENTVARIABLES_SHAREDAPPSECRET"
+          decodingStrategy: "None"
+          conversionStrategy: "Default"
+    
+    github-token:
+      data:
+        GITHUB_TOKEN:
+          key: "booking-service"
+          property: "GITHUB_TOKEN"
+          decodingStrategy: "None"
+          conversionStrategy: "Default"
+
+# Advanced Ingress with Active/Preview Support
+ingress:
+  labels: {}
+  labels_active: {}
+  labels_preview: {}
+  annotations: {}
+  annotations_active: {}
+  annotations_preview: {}
+  
+  data:
+    fk-ingress:
+      enabled: true
+      annotations:
+        appgw.ingress.kubernetes.io/appgw-ssl-certificate: "wildcard-fourkites-ssl"
+      className: "nginx"
+      hosts:
+        - host: "booking-api.fourkites.com"
+          host_preview: "booking-api-preview.fourkites.com"
+          paths:
+            - path: /
+              pathType: Prefix
+
+# Horizontal Pod Autoscaler
 autoscaling:
   enabled: false
   minReplicas: 2
   maxReplicas: 6
   targetCPUUtilizationPercentage: 70
-  # targetMemoryUtilizationPercentage: 80
 
-nodeSelector:
-  product: ocean
+# Pod Disruption Budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: "2"
 
-tolerations:
-  - key: "product"
-    operator: "Equal"
-    value: "ocean"
-    effect: "NoSchedule"
+# Persistence (not used)
+persistence:
+  enabled: false
 
-affinity: {}
+# Health checks
+livenessProbe:
+  failureThreshold: 3
+  httpGet:
+    path: /internal/v1/health_check
+    port: 5000
+    scheme: HTTP
+  periodSeconds: 40
+  successThreshold: 1
+  timeoutSeconds: 10
 
-externalSecrets:
-  name: "booking-service"
-  kind: ClusterSecretStore
-  key: "booking-service"
-  refreshInterval: 5m
-  # labels:
-  #   root1-label1: value1
-  # annotations:
-  #   root1-annotation1: value1
-  es:
-    db-secrets:
-      data:
-        DB_HOST:
-          property: DB_HOST
-          decodingStrategy: None
-          conversionStrategy: Default
-        DB_DBNAME:
-          property: DB_DBNAME
-          decodingStrategy: None
-          conversionStrategy: Default
-        BOOKING_SERVICE_MIGRATION_USER:
-          property: BOOKING_SERVICE_MIGRATION_USER
-          decodingStrategy: None
-          conversionStrategy: Default
-        BOOKING_SERVICE_MIGRATION_PASSWORD:
-          property: BOOKING_SERVICE_MIGRATION_PASSWORD
-          decodingStrategy: None
-          conversionStrategy: Default
-        DB_USER:
-          property: DB_USER
-          decodingStrategy: None
-          conversionStrategy: Default
-        DB_PASSWORD:
-          property: DB_PASSWORD
-          decodingStrategy: None
-          conversionStrategy: Default
-    fourkites-secrets:
-      data:
-        ENVIRONMENTVARIABLES_FOURKITESAPPID:
-          property: ENVIRONMENTVARIABLES_FOURKITESAPPID
-          decodingStrategy: None
-          conversionStrategy: Default
-        ENVIRONMENTVARIABLES_SHAREDAPPSECRET:
-          property: ENVIRONMENTVARIABLES_SHAREDAPPSECRET
-          decodingStrategy: None
-          conversionStrategy: Default
-    github-token:
-      data:
-        GITHUB_TOKEN:
-          property: GITHUB_TOKEN
-          decodingStrategy: None
-          conversionStrategy: Default
-########################
-# Environment variables
-######################################
-configmaps: {}
-  ############
-  ############labels - to be used for all the configmaps
-  # labels:
-  #   label1: value1
-  #   label2: value2
-  # annotations:
-  #  annotation1: value1
-  ###########values - map under which all the configmaps are defined
-  # here test1 is a config map name, labels is the label specific to the config map and data is the data for the config map
-  # values:
-  #   test1:
-  #     labels:
-  #       test1-labels: value1
-  #     annotations:
-  #       test1-annotation: value1
-  #     data:
-  #       test1-key1: value1
-  #       test1-key2: value2
-  #       test1-key3: value3
-  #   test2:
-  #     labels:
-  #       test2-labels: value1
-  #     data:
-  #       test2-key1: value1
-  #       test2-key2: value2
-  #       test2-key3: value3
+readinessProbe:
+  failureThreshold: 3
+  httpGet:
+    path: /internal/v1/health_check
+    port: 5000
+    scheme: HTTP
+  periodSeconds: 40
+  successThreshold: 1
+  timeoutSeconds: 10
 
+startupProbe: {}
 
+# Custom notes for NOTES.txt
+customNotes: |
+  Welcome to Booking Service!
+
+  To access the booking API:
+  1. Internal: http://booking-service.default.svc.cluster.local
+  2. External: Use the Ingress URL (if configured)
+  
+  For support: contact@example.com
+
+# Additional configurations
+automountServiceAccountToken: false
+revisionHistoryLimit: 3
+update_config: true
