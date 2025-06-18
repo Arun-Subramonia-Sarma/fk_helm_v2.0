@@ -1,0 +1,72 @@
+# Test values to demonstrate the deprecated annotation filtering
+global:
+  nameOverride: "test-service"
+  fullnameOverride: "test-service"
+
+businessLabels:
+  bu: "test"
+  project: "test-service"
+  application: "test-api"
+  env: "test"
+  team: "test-team"
+
+image:
+  repository: "nginx"
+  pullPolicy: Always
+  tag: "latest"
+
+serviceAccount:
+  create: true
+  name: "test-service-sa"
+
+service:
+  enabled: true
+  type: ClusterIP
+  port: 80
+  targetPort: 80
+
+workload:
+  type: deployment
+  deployment:
+    enabled: true
+    replicas: 1
+
+# Autoscaling configuration
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 70
+
+# Pod Disruption Budget
+podDisruptionBudget:
+  enabled: false
+
+# Resources
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# Test ingress configuration with deprecated annotation
+ingress:
+  # Global annotations that include the deprecated annotation
+  annotations:
+    kubernetes.io/ingress.class: "nginx"  # This should be filtered out
+    nginx.ingress.kubernetes.io/rewrite-target: "/"
+  
+  data:
+    test-ingress:
+      enabled: true
+      className: "nginx"  # This should prevent the deprecated annotation
+      annotations:
+        kubernetes.io/ingress.class: "nginx"  # This should also be filtered out
+        nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      hosts:
+        - host: "test.example.com"
+          paths:
+            - path: /
+              pathType: Prefix
